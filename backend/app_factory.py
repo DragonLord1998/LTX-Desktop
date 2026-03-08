@@ -102,7 +102,7 @@ def create_app(
     app.include_router(runtime_policy_router)
 
     # Serve generated outputs (videos/images) so the browser can access them
-    outputs_dir = handler._config.outputs_dir
+    outputs_dir = handler.config.outputs_dir
     if outputs_dir.is_dir():
         app.mount("/outputs", StaticFiles(directory=outputs_dir), name="outputs")
 
