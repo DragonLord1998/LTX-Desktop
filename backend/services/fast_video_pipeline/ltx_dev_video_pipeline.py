@@ -1,4 +1,4 @@
-"""LTX fast video pipeline wrapper."""
+"""LTX dev (full quality) video pipeline wrapper using TI2VidTwoStagesPipeline."""
 
 from __future__ import annotations
 
@@ -13,8 +13,11 @@ from services.ltx_pipeline_common import default_tiling_config, encode_video_out
 from services.services_utils import AudioOrNone, TilingConfigType, device_supports_fp8
 
 
-class LTXFastVideoPipeline:
-    pipeline_kind: Final = "fast"
+class LTXDevVideoPipeline:
+    pipeline_kind: Final = "dev"
+
+    DEFAULT_NUM_INFERENCE_STEPS = 30
+    DEFAULT_GUIDANCE_SCALE = 4.0
 
     @staticmethod
     def create(
@@ -22,22 +25,34 @@ class LTXFastVideoPipeline:
         gemma_root: str | None,
         upsampler_path: str,
         device: torch.device,
-    ) -> "LTXFastVideoPipeline":
-        return LTXFastVideoPipeline(
+        *,
+        distilled_lora_path: str = "",
+    ) -> "LTXDevVideoPipeline":
+        return LTXDevVideoPipeline(
             checkpoint_path=checkpoint_path,
             gemma_root=gemma_root,
             upsampler_path=upsampler_path,
             device=device,
+            distilled_lora_path=distilled_lora_path,
         )
 
-    def __init__(self, checkpoint_path: str, gemma_root: str | None, upsampler_path: str, device: torch.device) -> None:
+    def __init__(
+        self,
+        checkpoint_path: str,
+        gemma_root: str | None,
+        upsampler_path: str,
+        device: torch.device,
+        *,
+        distilled_lora_path: str = "",
+    ) -> None:
         from ltx_core.quantization import QuantizationPolicy
-        from ltx_pipelines.distilled import DistilledPipeline
+        from ltx_pipelines.ti2vid_two_stages import TI2VidTwoStagesPipeline
 
-        self.pipeline = DistilledPipeline(
-            distilled_checkpoint_path=checkpoint_path,
-            gemma_root=cast(str, gemma_root),
+        self.pipeline = TI2VidTwoStagesPipeline(
+            checkpoint_path=checkpoint_path,
+            distilled_lora=distilled_lora_path,
             spatial_upsampler_path=upsampler_path,
+            gemma_root=cast(str, gemma_root),
             loras=[],
             device=device,
             quantization=QuantizationPolicy.fp8_cast() if device_supports_fp8(device) else None,
@@ -46,6 +61,7 @@ class LTXFastVideoPipeline:
     def _run_inference(
         self,
         prompt: str,
+        negative_prompt: str,
         seed: int,
         height: int,
         width: int,
@@ -58,11 +74,13 @@ class LTXFastVideoPipeline:
 
         return self.pipeline(
             prompt=prompt,
+            negative_prompt=negative_prompt,
             seed=seed,
             height=height,
             width=width,
             num_frames=num_frames,
             frame_rate=frame_rate,
+            num_inference_steps=self.DEFAULT_NUM_INFERENCE_STEPS,
             images=[_LtxImageInput(img.path, img.frame_idx, img.strength) for img in images],
             tiling_config=tiling_config,
         )
@@ -84,6 +102,7 @@ class LTXFastVideoPipeline:
         tiling_config = default_tiling_config()
         video, audio = self._run_inference(
             prompt=prompt,
+            negative_prompt=negative_prompt,
             seed=seed,
             height=height,
             width=width,
@@ -103,6 +122,7 @@ class LTXFastVideoPipeline:
         try:
             video, audio = self._run_inference(
                 prompt="test warmup",
+                negative_prompt="",
                 seed=42,
                 height=256,
                 width=384,

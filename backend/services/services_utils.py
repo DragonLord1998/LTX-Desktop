@@ -63,6 +63,33 @@ def device_supports_fp8(device: str | torch.device | object | None) -> bool:
     return get_device_type(device) == "cuda"
 
 
+def get_gpu_vram_gb(device: str | torch.device | object | None) -> int | None:
+    """Return total GPU VRAM in GB, or None if unavailable."""
+    if get_device_type(device) != "cuda":
+        return None
+    try:
+        properties = torch.cuda.get_device_properties(0)  # type: ignore[reportUnknownMemberType]
+        return int(properties.total_memory // (1024**3))  # type: ignore[reportUnknownMemberType]
+    except Exception:
+        return None
+
+
+def device_supports_fp8_compile(device: str | torch.device | object | None) -> bool:
+    """Check if the GPU supports FP8 in compiled Triton kernels (Ada/Hopper, cc >= 8.9).
+
+    Ampere GPUs (A40, A100, etc.) can run FP8 in eager mode (cast-based) but Triton
+    cannot compile fp8e4nv kernels on sm_86. This guard prevents torch.compile from
+    being used with FP8 on those architectures.
+    """
+    if not device_supports_fp8(device):
+        return False
+    try:
+        major, minor = torch.cuda.get_device_capability()
+        return major > 8 or (major == 8 and minor >= 9)
+    except Exception:
+        return False
+
+
 def sync_device(device: str | torch.device | object | None) -> None:
     device_type = get_device_type(device)
     if device_type == "cuda":

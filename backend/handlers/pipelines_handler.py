@@ -20,7 +20,9 @@ from services.interfaces import (
     RetakePipeline,
     VideoPipelineModelType,
 )
-from services.services_utils import device_supports_fp8, get_device_type
+from services.services_utils import device_supports_fp8, device_supports_fp8_compile, get_device_type, get_gpu_vram_gb
+
+_MIN_VRAM_GB_FOR_PRELOAD = 40
 from state.app_state_types import (
     A2VPipelineState,
     AppState,
@@ -54,11 +56,13 @@ class PipelinesHandler(StateHandlerBase):
         config: RuntimeConfig,
         outputs_dir: Path,
         device: torch.device,
+        dev_video_pipeline_class: type[FastVideoPipeline] | None = None,
     ) -> None:
         super().__init__(state, lock)
         self._text_handler = text_handler
         self._gpu_cleaner = gpu_cleaner
         self._fast_video_pipeline_class = fast_video_pipeline_class
+        self._dev_video_pipeline_class = dev_video_pipeline_class
         self._image_generation_pipeline_class = image_generation_pipeline_class
         self._ic_lora_pipeline_class = ic_lora_pipeline_class
         self._a2v_pipeline_class = a2v_pipeline_class
@@ -101,13 +105,33 @@ class PipelinesHandler(StateHandlerBase):
             return
         te.service.install_patches(lambda: self.state)
 
+    def _maybe_preload_transformer(self, state: VideoPipelineState) -> None:
+        vram_gb = get_gpu_vram_gb(self._device)
+        if vram_gb is not None and vram_gb < _MIN_VRAM_GB_FOR_PRELOAD:
+            logger.info(
+                "Skipping transformer preload for %s — %dGB VRAM below %dGB threshold",
+                state.pipeline.pipeline_kind, vram_gb, _MIN_VRAM_GB_FOR_PRELOAD,
+            )
+            return
+        state.pipeline.preload_transformer()
+
     def _compile_if_enabled(self, state: VideoPipelineState) -> VideoPipelineState:
         if not self.state.app_settings.use_torch_compile:
+            self._maybe_preload_transformer(state)
             return state
         if state.is_compiled:
             return state
         if self._runtime_device == "mps":
             logger.info("Skipping torch.compile() for %s - not supported on MPS", state.pipeline.pipeline_kind)
+            self._maybe_preload_transformer(state)
+            return state
+        if device_supports_fp8(self._device) and not device_supports_fp8_compile(self._device):
+            logger.info(
+                "Skipping torch.compile() for %s - FP8 quantization active but GPU lacks "
+                "native FP8 Triton support (requires Ada/Hopper, cc >= 8.9)",
+                state.pipeline.pipeline_kind,
+            )
+            self._maybe_preload_transformer(state)
             return state
 
         try:
@@ -115,20 +139,37 @@ class PipelinesHandler(StateHandlerBase):
             state.is_compiled = True
         except Exception as exc:
             logger.warning("Failed to compile transformer: %s", exc, exc_info=True)
+            self._maybe_preload_transformer(state)
         return state
 
     def _create_video_pipeline(self, model_type: VideoPipelineModelType) -> VideoPipelineState:
         gemma_root = self._text_handler.resolve_gemma_root()
-
-        checkpoint_path = str(self._config.model_path("checkpoint"))
         upsampler_path = str(self._config.model_path("upsampler"))
 
-        pipeline = self._fast_video_pipeline_class.create(
-            checkpoint_path,
-            gemma_root,
-            upsampler_path,
-            self._device,
-        )
+        if model_type == "dev":
+            if self._dev_video_pipeline_class is None:
+                raise RuntimeError("Dev video pipeline class not configured")
+            checkpoint_path = str(self._config.model_path("dev_checkpoint"))
+            if not self._config.model_path("dev_checkpoint").exists():
+                raise RuntimeError(
+                    "Dev model not downloaded. Place ltx-2.3-22b-dev-fp8.safetensors in your models directory."
+                )
+            distilled_lora_path = str(self._config.model_path("distilled_lora"))
+            pipeline = self._dev_video_pipeline_class.create(
+                checkpoint_path,
+                gemma_root,
+                upsampler_path,
+                self._device,
+                distilled_lora_path=distilled_lora_path,
+            )
+        else:
+            checkpoint_path = str(self._config.model_path("checkpoint"))
+            pipeline = self._fast_video_pipeline_class.create(
+                checkpoint_path,
+                gemma_root,
+                upsampler_path,
+                self._device,
+            )
 
         state = VideoPipelineState(
             pipeline=pipeline,

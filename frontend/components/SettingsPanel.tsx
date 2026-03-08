@@ -8,7 +8,7 @@ import {
 } from '../lib/api-video-options'
 
 export interface GenerationSettings {
-  model: 'fast' | 'pro'
+  model: 'fast' | 'pro' | 'dev'
   duration: number
   videoResolution: string
   fps: number
@@ -116,7 +116,7 @@ export function SettingsPanel({
           disabled={disabled}
         >
           <option value="fast">LTX 2.3 Fast</option>
-          <option value="pro">LTX 2.3 Pro</option>
+          <option value="dev">LTX 2.3 Dev (Full Quality)</option>
         </Select>
       ) : (
         <Select

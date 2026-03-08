@@ -9,6 +9,7 @@ import { registerLogHandlers } from './ipc/log-handlers'
 import { registerVideoProcessingHandlers } from './ipc/video-processing-handlers'
 import { initSessionLog } from './logging-management'
 import { stopPythonBackend } from './python-backend'
+import { isRemoteBackend, stopSSHTunnel } from './ssh-tunnel'
 import { initAutoUpdater } from './updater'
 import { createWindow, getMainWindow } from './window'
 import { sendAnalyticsEvent } from './analytics'
@@ -55,7 +56,11 @@ if (!gotLock) {
 
   app.on('window-all-closed', () => {
     if (process.platform !== 'darwin') {
-      stopPythonBackend()
+      if (isRemoteBackend()) {
+        stopSSHTunnel()
+      } else {
+        stopPythonBackend()
+      }
       app.quit()
     }
   })
@@ -68,6 +73,10 @@ if (!gotLock) {
 
   app.on('before-quit', () => {
     stopExportProcess()
-    stopPythonBackend()
+    if (isRemoteBackend()) {
+      stopSSHTunnel()
+    } else {
+      stopPythonBackend()
+    }
   })
 }

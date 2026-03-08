@@ -24,7 +24,7 @@ if TYPE_CHECKING:
 # Model file availability (disk truth)
 # ============================================================
 
-ModelFileType = Literal["checkpoint", "upsampler", "text_encoder", "zit"]
+ModelFileType = Literal["checkpoint", "upsampler", "text_encoder", "zit", "dev_checkpoint", "distilled_lora"]
 
 # Availability and download are orthogonal concerns.
 AvailableFiles = dict[ModelFileType, Path | None]

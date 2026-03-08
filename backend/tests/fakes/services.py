@@ -470,6 +470,60 @@ class _FakeVideoPipelineBase:
     def compile_transformer(self) -> None:
         self.compile_calls += 1
 
+    def preload_transformer(self) -> None:
+        pass
+
+
+class FakeDevVideoPipeline(_FakeVideoPipelineBase):
+    pipeline_kind = "dev"
+    _singleton: ClassVar["FakeDevVideoPipeline | None"] = None
+
+    @classmethod
+    def bind_singleton(cls, pipeline: "FakeDevVideoPipeline") -> None:
+        cls._singleton = pipeline
+
+    @staticmethod
+    def create(
+        checkpoint_path: str,
+        gemma_root: str | None,
+        upsampler_path: str,
+        device: str | object,
+        *,
+        distilled_lora_path: str = "",
+    ) -> "FakeDevVideoPipeline":
+        del checkpoint_path, gemma_root, upsampler_path, device, distilled_lora_path
+        pipeline = FakeDevVideoPipeline._singleton
+        if pipeline is None:
+            raise RuntimeError("FakeDevVideoPipeline singleton is not bound")
+        return pipeline
+
+    def generate(
+        self,
+        prompt: str,
+        seed: int,
+        height: int,
+        width: int,
+        num_frames: int,
+        frame_rate: float,
+        images: list[ImageConditioningInput],
+        output_path: str,
+        *,
+        negative_prompt: str = "",
+    ) -> None:
+        self._record_generate(
+            {
+                "prompt": prompt,
+                "seed": seed,
+                "height": height,
+                "width": width,
+                "num_frames": num_frames,
+                "frame_rate": frame_rate,
+                "images": images,
+                "output_path": output_path,
+                "negative_prompt": negative_prompt,
+            }
+        )
+
 
 class FakeFastVideoPipeline(_FakeVideoPipelineBase):
     pipeline_kind = "fast"
@@ -502,6 +556,8 @@ class FakeFastVideoPipeline(_FakeVideoPipelineBase):
         frame_rate: float,
         images: list[ImageConditioningInput],
         output_path: str,
+        *,
+        negative_prompt: str = "",
     ) -> None:
         self._record_generate(
             {
@@ -755,6 +811,7 @@ class FakeServices:
     ltx_api_client: FakeLTXAPIClient = field(default_factory=FakeLTXAPIClient)
     zit_api_client: FakeZitAPIClient = field(default_factory=FakeZitAPIClient)
     fast_video_pipeline: FakeFastVideoPipeline = field(default_factory=FakeFastVideoPipeline)
+    dev_video_pipeline: FakeDevVideoPipeline = field(default_factory=FakeDevVideoPipeline)
     image_generation_pipeline: FakeImageGenerationPipeline = field(default_factory=FakeImageGenerationPipeline)
     ic_lora_pipeline: FakeIcLoraPipeline = field(default_factory=FakeIcLoraPipeline)
     a2v_pipeline: FakeA2VPipeline = field(default_factory=FakeA2VPipeline)
@@ -763,6 +820,7 @@ class FakeServices:
 
     def __post_init__(self) -> None:
         FakeFastVideoPipeline.bind_singleton(self.fast_video_pipeline)
+        FakeDevVideoPipeline.bind_singleton(self.dev_video_pipeline)
         FakeImageGenerationPipeline.bind_singleton(self.image_generation_pipeline)
         FakeIcLoraPipeline.bind_singleton(self.ic_lora_pipeline)
         FakeA2VPipeline.bind_singleton(self.a2v_pipeline)

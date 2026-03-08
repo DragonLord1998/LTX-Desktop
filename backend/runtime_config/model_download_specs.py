@@ -27,16 +27,18 @@ MODEL_FILE_ORDER: tuple[ModelFileType, ...] = (
     "upsampler",
     "text_encoder",
     "zit",
+    "dev_checkpoint",
+    "distilled_lora",
 )
 
 
 DEFAULT_MODEL_DOWNLOAD_SPECS: dict[ModelFileType, ModelFileDownloadSpec] = {
     "checkpoint": ModelFileDownloadSpec(
-        relative_path=Path("ltx-2.3-22b-dev-fp8.safetensors"),
-        expected_size_bytes=29_000_000_000,
+        relative_path=Path("ltx-2.3-22b-distilled.safetensors"),
+        expected_size_bytes=44_000_000_000,
         is_folder=False,
-        repo_id="Lightricks/LTX-2.3-fp8",
-        description="Main transformer model (FP8)",
+        repo_id="Lightricks/LTX-2.3",
+        description="Main transformer model (distilled, BF16 — FP8 quantized at runtime)",
     ),
     "upsampler": ModelFileDownloadSpec(
         relative_path=Path("ltx-2.3-spatial-upscaler-x2-1.0.safetensors"),
@@ -58,6 +60,20 @@ DEFAULT_MODEL_DOWNLOAD_SPECS: dict[ModelFileType, ModelFileDownloadSpec] = {
         is_folder=True,
         repo_id="Tongyi-MAI/Z-Image-Turbo",
         description="Z-Image-Turbo model for text-to-image generation",
+    ),
+    "dev_checkpoint": ModelFileDownloadSpec(
+        relative_path=Path("ltx-2.3-22b-dev-fp8.safetensors"),
+        expected_size_bytes=28_000_000_000,
+        is_folder=False,
+        repo_id="Lightricks/LTX-2.3",
+        description="Dev transformer model (FP8 — full quality, slower inference)",
+    ),
+    "distilled_lora": ModelFileDownloadSpec(
+        relative_path=Path("ltx-2.3-22b-distilled-lora-384.safetensors"),
+        expected_size_bytes=7_600_000_000,
+        is_folder=False,
+        repo_id="Lightricks/LTX-2.3",
+        description="Distilled LoRA for dev model two-stage refinement",
     ),
 }
 

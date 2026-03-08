@@ -64,6 +64,7 @@ class AppHandler:
         a2v_pipeline_class: type[A2VPipeline],
         retake_pipeline_class: type[RetakePipeline],
         ic_lora_model_downloader: IcLoraModelDownloader,
+        dev_video_pipeline_class: type[FastVideoPipeline] | None = None,
     ) -> None:
         self.config = config
 
@@ -77,6 +78,7 @@ class AppHandler:
         self.ltx_api_client = ltx_api_client
         self.zit_api_client = zit_api_client
         self.fast_video_pipeline_class = fast_video_pipeline_class
+        self.dev_video_pipeline_class = dev_video_pipeline_class
         self.image_generation_pipeline_class = image_generation_pipeline_class
         self.ic_lora_pipeline_class = ic_lora_pipeline_class
         self.a2v_pipeline_class = a2v_pipeline_class
@@ -91,6 +93,8 @@ class AppHandler:
                 "upsampler": None,
                 "text_encoder": None,
                 "zit": None,
+                "dev_checkpoint": None,
+                "distilled_lora": None,
             },
             downloading_session=None,
             gpu_slot=None,
@@ -146,6 +150,7 @@ class AppHandler:
             config=config,
             outputs_dir=config.outputs_dir,
             device=config.device,
+            dev_video_pipeline_class=dev_video_pipeline_class,
         )
 
         self.generation = GenerationHandler(state=self.state, lock=self._lock)
@@ -235,11 +240,13 @@ class ServiceBundle:
     a2v_pipeline_class: type[A2VPipeline]
     retake_pipeline_class: type[RetakePipeline]
     ic_lora_model_downloader: IcLoraModelDownloader
+    dev_video_pipeline_class: type[FastVideoPipeline] | None = None
 
 
 def build_default_service_bundle(config: RuntimeConfig) -> ServiceBundle:
     """Build real runtime services with lazy heavy imports isolated from tests."""
     from services.fast_video_pipeline.ltx_fast_video_pipeline import LTXFastVideoPipeline
+    from services.fast_video_pipeline.ltx_dev_video_pipeline import LTXDevVideoPipeline
     from services.zit_api_client.zit_api_client_impl import ZitAPIClientImpl
     from services.gpu_cleaner.torch_cleaner import TorchCleaner
     from services.gpu_info.gpu_info_impl import GpuInfoImpl
@@ -272,6 +279,7 @@ def build_default_service_bundle(config: RuntimeConfig) -> ServiceBundle:
         ltx_api_client=LTXAPIClientImpl(http=http, ltx_api_base_url=config.ltx_api_base_url),
         zit_api_client=ZitAPIClientImpl(http=http),
         fast_video_pipeline_class=LTXFastVideoPipeline,
+        dev_video_pipeline_class=LTXDevVideoPipeline,
         image_generation_pipeline_class=ZitImageGenerationPipeline,
         ic_lora_pipeline_class=LTXIcLoraPipeline,
         a2v_pipeline_class=LTXa2vPipeline,
@@ -305,4 +313,5 @@ def build_initial_state(
         a2v_pipeline_class=bundle.a2v_pipeline_class,
         retake_pipeline_class=bundle.retake_pipeline_class,
         ic_lora_model_downloader=bundle.ic_lora_model_downloader,
+        dev_video_pipeline_class=bundle.dev_video_pipeline_class,
     )

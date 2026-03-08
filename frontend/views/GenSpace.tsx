@@ -609,6 +609,7 @@ function PromptBar({
                     ]
                   : [
                       { value: 'fast', label: 'LTX 2.3 Fast' },
+                      { value: 'dev', label: 'LTX 2.3 Dev (Full Quality)' },
                     ]
               }
               trigger={
@@ -617,7 +618,7 @@ function PromptBar({
                   <span className="text-zinc-300 font-medium">
                     {shouldVideoGenerateWithLtxApi
                       ? (settings.model === 'pro' ? 'LTX-2.3 Pro (API)' : 'LTX-2.3 Fast (API)')
-                      : 'LTX 2.3 Fast'}
+                      : (settings.model === 'dev' ? 'LTX 2.3 Dev' : 'LTX 2.3 Fast')}
                   </span>
                 </>
               }
@@ -1094,7 +1095,7 @@ export function GenSpace() {
       generateImage(
         prompt,
         {
-          model: 'fast' as 'fast' | 'pro',
+          model: 'fast' as 'fast' | 'pro' | 'dev',
           duration: 5,
           videoResolution: settings.videoResolution,
           fps: 24,
@@ -1118,7 +1119,7 @@ export function GenSpace() {
         prompt,
         imagePath,
         {
-          model: videoSettings.model as 'fast' | 'pro',
+          model: videoSettings.model as 'fast' | 'pro' | 'dev',
           duration: videoSettings.duration,
           videoResolution: videoSettings.videoResolution,
           fps: videoSettings.fps,

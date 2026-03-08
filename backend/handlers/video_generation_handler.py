@@ -25,9 +25,14 @@ from server_utils.media_validation import (
     validate_audio_file,
     validate_image_file,
 )
-from services.interfaces import LTXAPIClient
+from services.interfaces import LTXAPIClient, VideoPipelineModelType
 from state.app_state_types import AppState
 from state.app_settings import should_video_generate_with_ltx_api
+
+LOCAL_MODEL_MAP: dict[str, VideoPipelineModelType] = {
+    "fast": "fast",
+    "dev": "dev",
+}
 
 if TYPE_CHECKING:
     from runtime_config.runtime_config import RuntimeConfig
@@ -97,7 +102,8 @@ class VideoGenerationHandler(StateHandlerBase):
         if audio_path:
             return self._generate_a2v(req, duration, fps, audio_path=audio_path)
 
-        logger.info("Resolution %s - using fast pipeline", resolution)
+        model_type = LOCAL_MODEL_MAP.get(req.model.strip().lower(), "fast")
+        logger.info("Resolution %s - using %s pipeline", resolution, model_type)
 
         RESOLUTION_MAP_16_9: dict[str, tuple[int, int]] = {
             "540p": (960, 544),
@@ -130,7 +136,7 @@ class VideoGenerationHandler(StateHandlerBase):
         seed = self._resolve_seed()
 
         try:
-            self._pipelines.load_gpu_pipeline("fast", should_warm=False)
+            self._pipelines.load_gpu_pipeline(model_type, should_warm=False)
             self._generation.start_generation(generation_id)
 
             output_path = self.generate_video(
@@ -143,6 +149,7 @@ class VideoGenerationHandler(StateHandlerBase):
                 seed=seed,
                 camera_motion=req.cameraMotion,
                 negative_prompt=req.negativePrompt,
+                model_type=model_type,
             )
 
             self._generation.complete_generation(output_path)
@@ -167,22 +174,24 @@ class VideoGenerationHandler(StateHandlerBase):
         seed: int,
         camera_motion: VideoCameraMotion,
         negative_prompt: str,
+        model_type: VideoPipelineModelType = "fast",
     ) -> str:
         t_total_start = time.perf_counter()
         gen_mode = "i2v" if image is not None else "t2v"
-        logger.info("[%s] Generation started (model=fast, %dx%d, %d frames, %d fps)", gen_mode, width, height, num_frames, int(fps))
+        logger.info("[%s] Generation started (model=%s, %dx%d, %d frames, %d fps)", gen_mode, model_type, width, height, num_frames, int(fps))
 
         if self._generation.is_generation_cancelled():
             raise RuntimeError("Generation was cancelled")
 
-        if not self._config.model_path("checkpoint").exists():
+        checkpoint_key = "dev_checkpoint" if model_type == "dev" else "checkpoint"
+        if not self._config.model_path(checkpoint_key).exists():
             raise RuntimeError("Models not downloaded. Please download the AI models first using the Model Status menu.")
 
-        total_steps = 8
+        total_steps = 30 if model_type == "dev" else 8
 
         self._generation.update_progress("loading_model", 5, 0, total_steps)
         t_load_start = time.perf_counter()
-        pipeline_state = self._pipelines.load_gpu_pipeline("fast", should_warm=False)
+        pipeline_state = self._pipelines.load_gpu_pipeline(model_type, should_warm=False)
         t_load_end = time.perf_counter()
         logger.info("[%s] Pipeline load: %.2fs", gen_mode, t_load_end - t_load_start)
 
@@ -218,6 +227,7 @@ class VideoGenerationHandler(StateHandlerBase):
             height = round(height / 64) * 64
             width = round(width / 64) * 64
 
+            neg = negative_prompt if negative_prompt else self._default_negative_prompt
             t_inference_start = time.perf_counter()
             pipeline_state.pipeline.generate(
                 prompt=enhanced_prompt,
@@ -228,6 +238,7 @@ class VideoGenerationHandler(StateHandlerBase):
                 frame_rate=fps,
                 images=images,
                 output_path=str(output_path),
+                negative_prompt=neg if model_type == "dev" else "",
             )
             t_inference_end = time.perf_counter()
             logger.info("[%s] Inference: %.2fs", gen_mode, t_inference_end - t_inference_start)

@@ -6,6 +6,7 @@ import { BACKEND_BASE_URL, getCurrentDir, isDev, PYTHON_PORT } from './config'
 import { logger } from './logger'
 import { getCurrentLogFilename } from './logging-management'
 import { getPythonDir } from './python-setup'
+import { isRemoteBackend, startSSHTunnel } from './ssh-tunnel'
 import { getMainWindow } from './window'
 
 let pythonProcess: ChildProcess | null = null
@@ -179,6 +180,13 @@ export function getPythonPath(): string {
 }
 
 export async function startPythonBackend(): Promise<void> {
+  // Remote backend mode: start SSH tunnel instead of local Python
+  if (isRemoteBackend()) {
+    logger.info('Remote backend mode — starting SSH tunnel instead of local Python')
+    startSSHTunnel()
+    return
+  }
+
   if (startPromise) {
     return startPromise
   }
