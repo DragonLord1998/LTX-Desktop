@@ -18,7 +18,7 @@ interface SettingsModalProps {
   initialTab?: TabId
 }
 
-type TabId = 'general' | 'apiKeys' | 'inference' | 'promptEnhancer' | 'about'
+type TabId = 'general' | 'apiKeys' | 'inference' | 'promptEnhancer'
 
 export function SettingsModal({ isOpen, onClose, initialTab }: SettingsModalProps) {
   const { settings, updateSettings, saveLtxApiKey, saveFalApiKey, saveGeminiApiKey, forceApiGenerations } = useAppSettings()
@@ -267,7 +267,6 @@ export function SettingsModal({ isOpen, onClose, initialTab }: SettingsModalProp
     { id: 'apiKeys' as TabId, label: 'API Keys', icon: KeyRound },
     { id: 'inference' as TabId, label: 'Inference', icon: Sliders },
     { id: 'promptEnhancer' as TabId, label: 'Prompt Enhancer', icon: Sparkles },
-    { id: 'about' as TabId, label: 'About', icon: Info },
   ]
 
   return (
@@ -678,42 +677,6 @@ export function SettingsModal({ isOpen, onClose, initialTab }: SettingsModalProp
                 </div>
               </div>
 
-              {/* Anonymous Analytics Setting */}
-              <div className="space-y-3 pt-4 border-t border-zinc-800">
-                <div className="flex items-start justify-between gap-4">
-                  <div className="flex-1">
-                    <div className="flex items-center gap-2 mb-1">
-                      <svg className="h-4 w-4 text-violet-400" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
-                        <line x1="18" y1="20" x2="18" y2="10" />
-                        <line x1="12" y1="20" x2="12" y2="4" />
-                        <line x1="6" y1="20" x2="6" y2="14" />
-                      </svg>
-                      <label className="text-sm font-medium text-white">
-                        Anonymous Analytics
-                      </label>
-                    </div>
-                    <p className="text-xs text-zinc-500 leading-relaxed">
-                      Share anonymous usage data to help improve LTX Desktop.
-                      Only basic technical information is collected — never personal data or generated content.
-                    </p>
-                  </div>
-
-                  {/* Toggle Switch */}
-                  <button
-                    onClick={handleToggleAnalytics}
-                    className={`relative inline-flex h-6 w-11 flex-shrink-0 cursor-pointer rounded-full border-2 border-transparent transition-colors duration-200 ease-in-out focus:outline-none ${
-                      analyticsEnabled ? 'bg-violet-500' : 'bg-zinc-700'
-                    }`}
-                  >
-                    <span
-                      className={`pointer-events-none inline-block h-5 w-5 transform rounded-full bg-white shadow ring-0 transition duration-200 ease-in-out ${
-                        analyticsEnabled ? 'translate-x-5' : 'translate-x-0'
-                      }`}
-                    />
-                  </button>
-                </div>
-
-              </div>
             </>
           )}
 
@@ -1105,115 +1068,6 @@ export function SettingsModal({ isOpen, onClose, initialTab }: SettingsModalProp
             </>
           )}
 
-          {activeTab === 'about' && (
-            <>
-              {showModelLicense ? (
-                <div className="space-y-3">
-                  <div className="flex items-center justify-between">
-                    <h3 className="text-sm font-semibold text-white">LTX-2 Model License</h3>
-                    <Button
-                      variant="ghost"
-                      size="sm"
-                      onClick={() => setShowModelLicense(false)}
-                      className="h-7 px-2 text-xs text-zinc-400 hover:text-white hover:bg-zinc-800"
-                    >
-                      Back
-                    </Button>
-                  </div>
-                  <pre className="text-xs text-zinc-300 whitespace-pre-wrap font-mono bg-zinc-800/50 rounded-lg p-4 max-h-[50vh] overflow-y-auto border border-zinc-700/50">
-                    {modelLicenseText}
-                  </pre>
-                </div>
-              ) : showNotices ? (
-                <div className="space-y-3">
-                  <div className="flex items-center justify-between">
-                    <h3 className="text-sm font-semibold text-white">Third-Party Notices</h3>
-                    <Button
-                      variant="ghost"
-                      size="sm"
-                      onClick={() => setShowNotices(false)}
-                      className="h-7 px-2 text-xs text-zinc-400 hover:text-white hover:bg-zinc-800"
-                    >
-                      Back
-                    </Button>
-                  </div>
-                  <pre className="text-xs text-zinc-300 whitespace-pre-wrap font-mono bg-zinc-800/50 rounded-lg p-4 max-h-[50vh] overflow-y-auto border border-zinc-700/50">
-                    {noticesText}
-                  </pre>
-                </div>
-              ) : (
-                <div className="space-y-6">
-                  {/* App Identity */}
-                  <div className="text-center space-y-2">
-                    <h3 className="text-lg font-bold text-white">LTX Desktop</h3>
-                    <p className="text-sm text-zinc-400">Version {appVersion || '...'}</p>
-                    <p className="text-xs text-zinc-500">AI-Powered Video Editor</p>
-                  </div>
-
-                  {/* License */}
-                  <div className="bg-zinc-800/50 rounded-lg p-4 space-y-2">
-                    <div className="flex items-center gap-2">
-                      <Info className="h-4 w-4 text-blue-400" />
-                      <span className="text-sm font-medium text-white">License</span>
-                    </div>
-                    <p className="text-xs text-zinc-400">
-                      Licensed under the Apache License, Version 2.0
-                    </p>
-                  </div>
-
-                  {/* LTX-2 Model License */}
-                  <div className="bg-zinc-800/50 rounded-lg p-4 space-y-3">
-                    <div className="flex items-center gap-2">
-                      <svg className="h-4 w-4 text-blue-400" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2">
-                        <path d="M21 16V8a2 2 0 0 0-1-1.73l-7-4a2 2 0 0 0-2 0l-7 4A2 2 0 0 0 3 8v8a2 2 0 0 0 1 1.73l7 4a2 2 0 0 0 2 0l7-4A2 2 0 0 0 21 16z" />
-                      </svg>
-                      <span className="text-sm font-medium text-white">LTX-2 Model License</span>
-                    </div>
-                    <p className="text-xs text-zinc-400">
-                      The LTX-2 model is subject to the LTX-2 Community License Agreement, accepted during first-run setup.
-                    </p>
-                    <Button
-                      size="sm"
-                      onClick={handleLoadModelLicense}
-                      disabled={modelLicenseLoading}
-                      className="w-full bg-zinc-700 hover:bg-zinc-600 text-white text-xs"
-                    >
-                      {modelLicenseLoading ? 'Loading...' : 'View Model License'}
-                    </Button>
-                  </div>
-
-                  {/* Third-Party Notices */}
-                  <div className="bg-zinc-800/50 rounded-lg p-4 space-y-3">
-                    <div className="flex items-center gap-2">
-                      <svg className="h-4 w-4 text-blue-400" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2">
-                        <path d="M14 2H6a2 2 0 0 0-2 2v16a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V8z" />
-                        <polyline points="14 2 14 8 20 8" />
-                        <line x1="16" y1="13" x2="8" y2="13" />
-                        <line x1="16" y1="17" x2="8" y2="17" />
-                      </svg>
-                      <span className="text-sm font-medium text-white">Third-Party Notices</span>
-                    </div>
-                    <p className="text-xs text-zinc-400">
-                      This application uses open-source software and AI models subject to their own license terms.
-                    </p>
-                    <Button
-                      size="sm"
-                      onClick={handleLoadNotices}
-                      disabled={noticesLoading}
-                      className="w-full bg-zinc-700 hover:bg-zinc-600 text-white text-xs"
-                    >
-                      {noticesLoading ? 'Loading...' : 'View Third-Party Notices'}
-                    </Button>
-                  </div>
-
-                  {/* Copyright */}
-                  <p className="text-center text-xs text-zinc-600">
-                    Copyright © 2026 Lightricks
-                  </p>
-                </div>
-              )}
-            </>
-          )}
         </div>
 
         {/* Footer */}
