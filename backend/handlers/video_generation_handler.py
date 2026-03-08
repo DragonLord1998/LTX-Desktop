@@ -136,7 +136,6 @@ class VideoGenerationHandler(StateHandlerBase):
         seed = self._resolve_seed()
 
         try:
-            self._pipelines.load_gpu_pipeline(model_type, should_warm=False)
             self._generation.start_generation(generation_id)
 
             output_path = self.generate_video(
@@ -229,6 +228,7 @@ class VideoGenerationHandler(StateHandlerBase):
 
             neg = negative_prompt if negative_prompt else self._default_negative_prompt
             t_inference_start = time.perf_counter()
+            # Distilled (fast) model ignores negative prompts; only dev model uses CFG guidance
             pipeline_state.pipeline.generate(
                 prompt=enhanced_prompt,
                 seed=seed,

@@ -17,7 +17,6 @@ class LTXDevVideoPipeline:
     pipeline_kind: Final = "dev"
 
     DEFAULT_NUM_INFERENCE_STEPS = 30
-    DEFAULT_GUIDANCE_SCALE = 4.0
 
     @staticmethod
     def create(

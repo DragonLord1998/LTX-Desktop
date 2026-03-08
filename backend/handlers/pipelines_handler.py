@@ -21,8 +21,6 @@ from services.interfaces import (
     VideoPipelineModelType,
 )
 from services.services_utils import device_supports_fp8, device_supports_fp8_compile, get_device_type, get_gpu_vram_gb
-
-_MIN_VRAM_GB_FOR_PRELOAD = 40
 from state.app_state_types import (
     A2VPipelineState,
     AppState,
@@ -39,6 +37,8 @@ if TYPE_CHECKING:
     from runtime_config.runtime_config import RuntimeConfig
 
 logger = logging.getLogger(__name__)
+
+_MIN_VRAM_GB_FOR_PRELOAD = 40
 
 
 class PipelinesHandler(StateHandlerBase):
@@ -155,6 +155,10 @@ class PipelinesHandler(StateHandlerBase):
                     "Dev model not downloaded. Place ltx-2.3-22b-dev-fp8.safetensors in your models directory."
                 )
             distilled_lora_path = str(self._config.model_path("distilled_lora"))
+            if not self._config.model_path("distilled_lora").exists():
+                raise RuntimeError(
+                    "Distilled LoRA not downloaded. Place ltx-2.3-22b-distilled-lora-384.safetensors in your models directory."
+                )
             pipeline = self._dev_video_pipeline_class.create(
                 checkpoint_path,
                 gemma_root,

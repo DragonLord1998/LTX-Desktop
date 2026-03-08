@@ -109,7 +109,7 @@ def default_app_settings() -> AppSettings:
 
 @pytest.fixture
 def create_fake_model_files(test_state):
-    def _create(include_zit: bool = False):
+    def _create(include_zit: bool = False, include_dev: bool = False):
         for path in (
             test_state.config.model_path("checkpoint"),
             test_state.config.model_path("upsampler"),
@@ -126,6 +126,14 @@ def create_fake_model_files(test_state):
             zit_dir = test_state.config.model_path("zit")
             zit_dir.mkdir(parents=True, exist_ok=True)
             (zit_dir / "model.safetensors").write_bytes(b"\x00" * 1024)
+
+        if include_dev:
+            for dev_path in (
+                test_state.config.model_path("dev_checkpoint"),
+                test_state.config.model_path("distilled_lora"),
+            ):
+                dev_path.parent.mkdir(parents=True, exist_ok=True)
+                dev_path.write_bytes(b"\x00" * 1024)
 
     return _create
 

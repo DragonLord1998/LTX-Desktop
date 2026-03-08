@@ -22,7 +22,10 @@ class LTXFastVideoPipeline:
         gemma_root: str | None,
         upsampler_path: str,
         device: torch.device,
+        *,
+        distilled_lora_path: str = "",
     ) -> "LTXFastVideoPipeline":
+        del distilled_lora_path  # Not used by distilled pipeline
         return LTXFastVideoPipeline(
             checkpoint_path=checkpoint_path,
             gemma_root=gemma_root,
