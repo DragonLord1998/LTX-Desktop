@@ -5,20 +5,21 @@ ENV PYTHONUNBUFFERED=1
 ENV HF_HOME=/workspace/.cache/huggingface
 ENV LTX_APP_DATA_DIR=/workspace
 
-# System dependencies + Node.js for frontend build
-RUN apt-get update && apt-get install -y \
+# System dependencies + Python 3.12 (deadsnakes PPA) + Node.js for frontend build
+RUN apt-get update && apt-get install -y software-properties-common \
+    && add-apt-repository -y ppa:deadsnakes/ppa \
+    && curl -fsSL https://deb.nodesource.com/setup_20.x | bash - \
+    && apt-get update && apt-get install -y \
     python3.12 \
     python3.12-dev \
     python3.12-venv \
-    python3-pip \
     git \
     curl \
     wget \
     ffmpeg \
     libgl1-mesa-glx \
     libglib2.0-0 \
-    && curl -fsSL https://deb.nodesource.com/setup_20.x | bash - \
-    && apt-get install -y nodejs \
+    nodejs \
     && npm install -g pnpm@10 \
     && rm -rf /var/lib/apt/lists/*
 
