@@ -97,7 +97,7 @@ export function AppSettingsProvider({ children }: { children: ReactNode }) {
   const [isLoaded, setIsLoaded] = useState(false)
   const [runtimePolicyLoaded, setRuntimePolicyLoaded] = useState(false)
   const [backendUrl, setBackendUrl] = useState<string | null>(null)
-  const [forceApiGenerations, setForceApiGenerations] = useState(true)
+  const [forceApiGenerations, setForceApiGenerations] = useState(false)
   const [backendProcessStatus, setBackendProcessStatus] = useState<BackendProcessStatus | null>(null)
 
   useEffect(() => {
@@ -127,8 +127,8 @@ export function AppSettingsProvider({ children }: { children: ReactNode }) {
         }
       } catch {
         if (!cancelled) {
-          // Fail closed until policy can be read.
-          setForceApiGenerations(true)
+          // Fail open — local GPU inference is the default.
+          setForceApiGenerations(false)
         }
       } finally {
         if (!cancelled) {
