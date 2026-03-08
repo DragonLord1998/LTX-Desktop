@@ -1,3 +1,17 @@
+# ── Stage 1: Build frontend ──
+FROM node:20-slim AS frontend-build
+
+RUN npm install -g pnpm@10
+
+WORKDIR /build
+COPY package.json pnpm-lock.yaml* /build/
+COPY tsconfig*.json vite.config.web.ts index.html /build/
+COPY postcss.config.js* tailwind.config.js* /build/
+COPY frontend/ /build/frontend/
+
+RUN pnpm install --frozen-lockfile --ignore-scripts && pnpm run build:web
+
+# ── Stage 2: Runtime ──
 FROM nvidia/cuda:12.8.1-devel-ubuntu22.04
 
 ENV DEBIAN_FRONTEND=noninteractive
@@ -5,10 +19,9 @@ ENV PYTHONUNBUFFERED=1
 ENV HF_HOME=/workspace/.cache/huggingface
 ENV LTX_APP_DATA_DIR=/workspace
 
-# System dependencies + Python 3.12 (deadsnakes PPA) + Node.js for frontend build
+# System dependencies + Python 3.12 (deadsnakes PPA)
 RUN apt-get update && apt-get install -y software-properties-common \
     && add-apt-repository -y ppa:deadsnakes/ppa \
-    && curl -fsSL https://deb.nodesource.com/setup_20.x | bash - \
     && apt-get update && apt-get install -y \
     python3.12 \
     python3.12-dev \
@@ -19,8 +32,6 @@ RUN apt-get update && apt-get install -y software-properties-common \
     ffmpeg \
     libgl1-mesa-glx \
     libglib2.0-0 \
-    nodejs \
-    && npm install -g pnpm@10 \
     && rm -rf /var/lib/apt/lists/*
 
 # Make python3.12 default
@@ -42,17 +53,11 @@ RUN pip install --no-cache-dir uv
 
 WORKDIR /app
 
-# ── Frontend build (web-only, no Electron) ──
-COPY frontend/ /app/frontend/
-COPY package.json pnpm-lock.yaml* tsconfig*.json vite.config.web.ts index.html /app/
-COPY postcss.config.js* tailwind.config.js* /app/
-RUN pnpm install --frozen-lockfile --ignore-scripts && pnpm run build:web \
-    && mkdir -p /app/backend/static \
-    && cp -r /app/dist-web/* /app/backend/static/ \
-    && rm -rf /app/node_modules /app/dist-web /app/frontend
-
-# ── Backend ──
+# Copy backend
 COPY backend/ /app/backend/
+
+# Copy built frontend from stage 1
+COPY --from=frontend-build /build/dist-web/ /app/backend/static/
 
 # Install backend dependencies (without torch, already installed)
 RUN cd /app/backend && pip install --no-cache-dir \
