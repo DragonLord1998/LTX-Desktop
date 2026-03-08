@@ -41,12 +41,12 @@ RUN update-alternatives --install /usr/bin/python3 python3 /usr/bin/python3.12 1
 # Install pip for python3.12
 RUN curl -sS https://bootstrap.pypa.io/get-pip.py | python3.12
 
-# Install PyTorch 2.8 with CUDA 12.8 (pinned for reproducibility)
-RUN pip install --no-cache-dir \
-    "torch==2.8.0" \
+# Install PyTorch nightly with CUDA 12.8 (Blackwell/sm_120 requires >=2.9.0)
+RUN pip install --no-cache-dir --pre \
+    torch \
     torchvision \
     torchaudio \
-    --index-url https://download.pytorch.org/whl/cu128
+    --index-url https://download.pytorch.org/whl/nightly/cu128
 
 # Install uv for fast package installs
 RUN pip install --no-cache-dir uv
