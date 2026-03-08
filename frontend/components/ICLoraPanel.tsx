@@ -4,6 +4,7 @@ import {
   FolderOpen, ChevronDown, RefreshCw, Settings, Download, Check, AlertCircle,
 } from 'lucide-react'
 import { logger } from '../lib/logger'
+import { getBackendUrl, showOpenFileDialog } from '../lib/electron-shim'
 
 interface ICLoraModel {
   name: string
@@ -136,7 +137,7 @@ export function ICLoraPanel({
   // Fetch available models
   const fetchModels = useCallback(async () => {
     try {
-      const backendUrl = await window.electronAPI.getBackendUrl()
+      const backendUrl = await getBackendUrl()
       const resp = await fetch(`${backendUrl}/api/ic-lora/list-models`)
       if (resp.ok) {
         const data = await resp.json()
@@ -155,7 +156,7 @@ export function ICLoraPanel({
     if (!inputVideoPath || isExtracting) return
     setIsExtracting(true)
     try {
-      const backendUrl = await window.electronAPI.getBackendUrl()
+      const backendUrl = await getBackendUrl()
       const resp = await fetch(`${backendUrl}/api/ic-lora/extract-conditioning`, {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
@@ -210,7 +211,7 @@ export function ICLoraPanel({
 
   // Browse for a video file
   const handleImportVideo = useCallback(async () => {
-    const paths = await window.electronAPI.showOpenFileDialog({
+    const paths = await showOpenFileDialog({
       title: 'Select Driving Video',
       filters: [{ name: 'Video', extensions: ['mp4', 'mov', 'avi', 'webm', 'mkv'] }],
     })
@@ -227,7 +228,7 @@ export function ICLoraPanel({
 
   // Import a reference image
   const handleImportImage = useCallback(async () => {
-    const paths = await window.electronAPI.showOpenFileDialog({
+    const paths = await showOpenFileDialog({
       title: 'Select Reference Image',
       filters: [{ name: 'Images', extensions: ['png', 'jpg', 'jpeg', 'webp', 'bmp'] }],
     })
@@ -254,7 +255,7 @@ export function ICLoraPanel({
     if (downloadingModels[modelDef.id] === 'downloading') return
     setDownloadingModels(prev => ({ ...prev, [modelDef.id]: 'downloading' }))
     try {
-      const backendUrl = await window.electronAPI.getBackendUrl()
+      const backendUrl = await getBackendUrl()
       const resp = await fetch(`${backendUrl}/api/ic-lora/download-model`, {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
@@ -275,7 +276,7 @@ export function ICLoraPanel({
 
   // Browse for a custom LoRA file
   const handleBrowseLora = useCallback(async () => {
-    const paths = await window.electronAPI.showOpenFileDialog({
+    const paths = await showOpenFileDialog({
       title: 'Select IC-LoRA Model',
       filters: [{ name: 'SafeTensors', extensions: ['safetensors'] }],
     })
@@ -302,7 +303,7 @@ export function ICLoraPanel({
     setOutputVideoPath(null)
 
     try {
-      const backendUrl = await window.electronAPI.getBackendUrl()
+      const backendUrl = await getBackendUrl()
       setGenerationStatus('Generating video with IC-LoRA...')
       const resp = await fetch(`${backendUrl}/api/ic-lora/generate`, {
         method: 'POST',

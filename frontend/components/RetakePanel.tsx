@@ -1,6 +1,7 @@
 import React, { useState, useRef, useEffect, useCallback } from 'react'
 import { Film, Play, Pause, Volume2, VolumeX, Loader2, Upload, Trash2, RefreshCw } from 'lucide-react'
 import { logger } from '../lib/logger'
+import { showOpenFileDialog } from '../lib/electron-shim'
 import { fileUrlToPath } from '../lib/url-to-path'
 
 interface RetakePanelProps {
@@ -319,7 +320,7 @@ export function RetakePanel({
   }, [draggingHandle, videoDuration])
 
   const handleBrowse = useCallback(async () => {
-    const paths = await window.electronAPI.showOpenFileDialog({
+    const paths = await showOpenFileDialog({
       title: 'Select Video',
       filters: [{ name: 'Video', extensions: ['mp4', 'mov', 'avi', 'webm', 'mkv'] }],
     })

@@ -1,6 +1,7 @@
 import { useState, useRef, useCallback, useEffect, useMemo } from 'react'
 import { X, Download, FolderOpen, Film, Package, Loader2, Check, AlertCircle, ChevronDown } from 'lucide-react'
 import { Button } from './ui/button'
+import { showSaveDialog, saveFile } from '../lib/electron-shim'
 import type { Track, Timeline, TimelineClip } from '../types/project'
 import { DEFAULT_SUBTITLE_STYLE } from '../types/project'
 
@@ -200,7 +201,7 @@ export function ExportModal({ open, onClose, clips, tracks, timeline, projectNam
     setExportError(null)
 
     try {
-      const filePath = await window.electronAPI?.showSaveDialog({
+      const filePath = await showSaveDialog({
         title: 'Export FCPXML Package',
         defaultPath: `${projectName}_${timeline.name}.fcpxml`,
         filters: [
@@ -216,7 +217,7 @@ export function ExportModal({ open, onClose, clips, tracks, timeline, projectNam
 
       setExportProgress(50)
       const xml = generateFCPXML(clips, tracks, projectName, timeline.name)
-      const result = await window.electronAPI?.saveFile(filePath, xml)
+      const result = await saveFile(filePath, xml)
       if (result?.success) {
         setExportProgress(100)
         setExportPath(filePath)
@@ -242,7 +243,7 @@ export function ExportModal({ open, onClose, clips, tracks, timeline, projectNam
     try {
       const codecInfo = CODEC_INFO[settings.codec]
       
-      const filePath = await window.electronAPI?.showSaveDialog({
+      const filePath = await showSaveDialog({
         title: `Export ${codecInfo.label}`,
         defaultPath: `${projectName}_${timeline.name}.${codecInfo.ext}`,
         filters: [

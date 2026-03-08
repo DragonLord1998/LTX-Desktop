@@ -1,5 +1,6 @@
 import { useCallback, useState } from 'react'
 import { logger } from '../lib/logger'
+import { getBackendUrl } from '../lib/electron-shim'
 
 export type RetakeMode = 'replace_audio_and_video' | 'replace_video' | 'replace_audio'
 
@@ -42,7 +43,7 @@ export function useRetake() {
     })
 
     try {
-      const backendUrl = await window.electronAPI.getBackendUrl()
+      const backendUrl = await getBackendUrl()
       const response = await fetch(`${backendUrl}/api/retake`, {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },

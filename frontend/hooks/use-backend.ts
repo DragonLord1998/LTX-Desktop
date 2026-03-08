@@ -1,5 +1,6 @@
 import { useState, useEffect, useCallback } from 'react'
 import { logger } from '../lib/logger'
+import { getBackendUrl, onBackendHealthStatus, getBackendHealthStatus } from '../lib/electron-shim'
 
 interface BackendStatus {
   connected: boolean
@@ -65,7 +66,7 @@ export function useBackend(): UseBackendReturn {
 
   const checkHealth = useCallback(async (): Promise<boolean> => {
     try {
-      const backendUrl = await window.electronAPI.getBackendUrl()
+      const backendUrl = await getBackendUrl()
       logger.info(`Checking backend health at: ${backendUrl}`)
       const response = await fetch(`${backendUrl}/health`)
 
@@ -92,7 +93,7 @@ export function useBackend(): UseBackendReturn {
 
   const fetchModels = useCallback(async () => {
     try {
-      const backendUrl = await window.electronAPI.getBackendUrl()
+      const backendUrl = await getBackendUrl()
       const response = await fetch(`${backendUrl}/api/models`)
 
       if (response.ok) {
@@ -106,7 +107,7 @@ export function useBackend(): UseBackendReturn {
 
   const downloadModel = useCallback(async (modelId: string) => {
     try {
-      const backendUrl = await window.electronAPI.getBackendUrl()
+      const backendUrl = await getBackendUrl()
 
       // Connect to WebSocket for download progress
       const wsUrl = backendUrl.replace('http://', 'ws://') + `/ws/download/${modelId}`
@@ -172,13 +173,13 @@ export function useBackend(): UseBackendReturn {
       await handleBackendStatus(payload)
     }
 
-    const unsubscribe = window.electronAPI.onBackendHealthStatus((data: BackendHealthStatusPayload) => {
+    const unsubscribe = onBackendHealthStatus((data: BackendHealthStatusPayload) => {
       void applyStatus(data)
     })
 
     const init = async () => {
       try {
-        const snapshot = await window.electronAPI.getBackendHealthStatus()
+        const snapshot = await getBackendHealthStatus()
         await applyStatus(snapshot)
       } catch (err) {
         logger.error(`Failed to load backend health status snapshot: ${err}`)

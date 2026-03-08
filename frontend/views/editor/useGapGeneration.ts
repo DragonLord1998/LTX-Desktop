@@ -4,6 +4,7 @@ import { DEFAULT_COLOR_CORRECTION } from '../../types/project'
 import type { GenerationSettings } from '../../components/SettingsPanel'
 import { copyToAssetFolder } from '../../lib/asset-copy'
 import { fileUrlToPath } from '../../lib/url-to-path'
+import { extractVideoFrame, getBackendUrl, getModelsPath, saveFile } from '../../lib/electron-shim'
 
 export interface UseGapGenerationParams {
   clips: TimelineClip[]
@@ -188,10 +189,10 @@ export function useGapGeneration({
             // In-memory file (e.g. canvas capture) — save to temp file
             const buf = await gapImageFile.arrayBuffer()
             const b64 = btoa(String.fromCharCode(...new Uint8Array(buf)))
-            const modelsPath = await window.electronAPI.getModelsPath()
+            const modelsPath = await getModelsPath()
             const tmpDir = modelsPath.replace(/[/\\]models$/, '')
             const tmpPath = `${tmpDir}/tmp_gap_image_${Date.now()}.png`
-            await window.electronAPI.saveFile(tmpPath, b64, 'base64')
+            await saveFile(tmpPath, b64, 'base64')
             imagePath = tmpPath
           }
         }
@@ -403,7 +404,7 @@ export function useGapGeneration({
           if (clipBefore.asset?.type === 'video') {
             const seekTime = clipBefore.trimStart + clipBefore.duration * clipBefore.speed - 0.1
             framePromises.push(
-              window.electronAPI.extractVideoFrame(clipSrc, Math.max(0, seekTime), 512, 3)
+              extractVideoFrame(clipSrc, Math.max(0, seekTime), 512, 3)
                 .then(result => { beforeFrame = result.path; beforeFrameUrl = result.url })
                 .catch(() => {})
             )
@@ -420,7 +421,7 @@ export function useGapGeneration({
         if (clipSrc) {
           if (clipAfter.asset?.type === 'video') {
             framePromises.push(
-              window.electronAPI.extractVideoFrame(clipSrc, clipAfter.trimStart + 0.1, 512, 3)
+              extractVideoFrame(clipSrc, clipAfter.trimStart + 0.1, 512, 3)
                 .then(result => { afterFrame = result.path; afterFrameUrl = result.url })
                 .catch(() => {})
             )
@@ -453,7 +454,7 @@ export function useGapGeneration({
         }
       }
       
-      const backendUrl = await window.electronAPI.getBackendUrl()
+      const backendUrl = await getBackendUrl()
       const response = await fetch(`${backendUrl}/api/suggest-gap-prompt`, {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },

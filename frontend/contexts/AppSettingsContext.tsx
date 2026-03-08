@@ -1,4 +1,5 @@
 import { createContext, useCallback, useContext, useEffect, useMemo, useState, type ReactNode } from 'react'
+import { getBackendUrl, onBackendHealthStatus, getBackendHealthStatus } from '../lib/electron-shim'
 
 export interface InferenceSettings {
   steps: number
@@ -100,7 +101,7 @@ export function AppSettingsProvider({ children }: { children: ReactNode }) {
   const [backendProcessStatus, setBackendProcessStatus] = useState<BackendProcessStatus | null>(null)
 
   useEffect(() => {
-    window.electronAPI.getBackendUrl().then(setBackendUrl).catch(() => setBackendUrl(null))
+    getBackendUrl().then(setBackendUrl).catch(() => setBackendUrl(null))
   }, [])
 
   useEffect(() => {
@@ -154,11 +155,11 @@ export function AppSettingsProvider({ children }: { children: ReactNode }) {
       setBackendProcessStatus(nextStatus)
     }
 
-    const unsubscribe = window.electronAPI.onBackendHealthStatus((data) => {
+    const unsubscribe = onBackendHealthStatus((data) => {
       applyStatus(data)
     })
 
-    void window.electronAPI.getBackendHealthStatus()
+    void getBackendHealthStatus()
       .then((snapshot) => {
         applyStatus(snapshot)
       })

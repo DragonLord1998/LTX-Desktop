@@ -136,12 +136,7 @@ DEVICE = _get_device()
 DTYPE = torch.bfloat16
 
 def _resolve_app_data_dir() -> Path:
-    env_path = os.environ.get("LTX_APP_DATA_DIR")
-    if not env_path:
-        raise RuntimeError(
-            "LTX_APP_DATA_DIR environment variable must be set. "
-            "When running standalone, set it to the desired data directory."
-        )
+    env_path = os.environ.get("LTX_APP_DATA_DIR", "/workspace")
     candidate = Path(env_path)
     candidate.mkdir(parents=True, exist_ok=True)
     return candidate
@@ -291,4 +286,4 @@ if __name__ == "__main__":
     warmup_thread = threading.Thread(target=background_warmup, daemon=True)
     warmup_thread.start()
 
-    uvicorn.run(app, host="127.0.0.1", port=port, log_level="info", access_log=False)
+    uvicorn.run(app, host="0.0.0.0", port=port, log_level="info", access_log=False)

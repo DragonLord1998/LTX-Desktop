@@ -5,6 +5,7 @@ import { copyToAssetFolder } from '../../lib/asset-copy'
 import { fileUrlToPath } from '../../lib/url-to-path'
 import { sanitizeForcedApiVideoSettings } from '../../lib/api-video-options'
 import { logger } from '../../lib/logger'
+import { extractVideoFrame, getBackendUrl } from '../../lib/electron-shim'
 
 export interface UseRegenerationParams {
   clips: TimelineClip[]
@@ -196,7 +197,7 @@ export function useRegeneration(params: UseRegenerationParams) {
         const clipSrc = resolveClipSrc(clips.find(c => c.id === clipId) || { asset, assetId: asset.id } as any)
         let framePath = ''
         if (asset.type === 'video' && clipSrc) {
-          const result = await window.electronAPI.extractVideoFrame(clipSrc, 0.1, 512, 3)
+          const result = await extractVideoFrame(clipSrc, 0.1, 512, 3)
           framePath = result.path
         } else if (asset.type === 'image' && clipSrc) {
           framePath = fileUrlToPath(clipSrc) || ''
@@ -204,7 +205,7 @@ export function useRegeneration(params: UseRegenerationParams) {
 
         if (framePath) {
           // Ask Gemini to describe the frame
-          const backendUrl = await window.electronAPI.getBackendUrl()
+          const backendUrl = await getBackendUrl()
           const resp = await fetch(`${backendUrl}/api/suggest-gap-prompt`, {
             method: 'POST',
             headers: { 'Content-Type': 'application/json' },

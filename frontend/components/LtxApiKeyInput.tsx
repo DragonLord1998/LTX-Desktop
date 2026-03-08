@@ -1,5 +1,6 @@
 import React, { forwardRef } from 'react'
 import { ExternalLink, KeyRound } from 'lucide-react'
+import { openLtxApiKeyPage } from '../lib/electron-shim'
 
 interface LtxApiKeyInputProps {
   value: string
@@ -66,7 +67,7 @@ export function LtxApiKeyHelperRow({ stopPropagation }: LtxApiKeyHelperRowProps)
     <ApiKeyHelperRow
       stopPropagation={stopPropagation}
       label="Get API key"
-      onOpenKey={() => window.electronAPI.openLtxApiKeyPage()}
+      onOpenKey={() => openLtxApiKeyPage()}
     />
   )
 }

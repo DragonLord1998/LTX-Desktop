@@ -3,6 +3,7 @@ import React, { useEffect, useRef, useState } from 'react'
 import { Button } from './ui/button'
 import { useAppSettings, type AppSettings } from '../contexts/AppSettingsContext'
 import { logger } from '../lib/logger'
+import { getBackendUrl, getAppInfo, getAnalyticsState, setAnalyticsEnabled as shimSetAnalyticsEnabled, fetchLicenseText, getNoticesText, openFalApiKeyPage } from '../lib/electron-shim'
 import { ApiKeyHelperRow, LtxApiKeyInput, LtxApiKeyHelperRow } from './LtxApiKeyInput'
 
 interface TextEncoderStatus {
@@ -65,13 +66,13 @@ export function SettingsModal({ isOpen, onClose, initialTab }: SettingsModalProp
   // Fetch app version when About tab is shown
   useEffect(() => {
     if (activeTab !== 'about' || appVersion) return
-    window.electronAPI.getAppInfo().then(info => setAppVersion(info.version)).catch(() => {})
+    getAppInfo().then(info => setAppVersion(info.version)).catch(() => {})
   }, [activeTab, appVersion])
 
   // Fetch analytics state when modal opens
   useEffect(() => {
     if (!isOpen) return
-    window.electronAPI.getAnalyticsState()
+    getAnalyticsState()
       .then((state: { analyticsEnabled: boolean }) => setAnalyticsEnabled(state.analyticsEnabled))
       .catch(() => {})
   }, [isOpen])
@@ -82,7 +83,7 @@ export function SettingsModal({ isOpen, onClose, initialTab }: SettingsModalProp
 
     const fetchStatus = async () => {
       try {
-        const backendUrl = await window.electronAPI.getBackendUrl()
+        const backendUrl = await getBackendUrl()
         const response = await fetch(`${backendUrl}/api/models/status`)
         if (response.ok) {
           const data = await response.json()
@@ -104,7 +105,7 @@ export function SettingsModal({ isOpen, onClose, initialTab }: SettingsModalProp
     setIsDownloading(true)
     setDownloadError(null)
     try {
-      const backendUrl = await window.electronAPI.getBackendUrl()
+      const backendUrl = await getBackendUrl()
       const response = await fetch(`${backendUrl}/api/text-encoder/download`, { method: 'POST' })
       const data = await response.json()
 
@@ -209,7 +210,7 @@ export function SettingsModal({ isOpen, onClose, initialTab }: SettingsModalProp
   const handleToggleAnalytics = () => {
     const next = !analyticsEnabled
     setAnalyticsEnabled(next)
-    window.electronAPI.setAnalyticsEnabled(next).catch(() => {})
+    shimSetAnalyticsEnabled(next).catch(() => {})
   }
 
   // Seed handlers
@@ -238,7 +239,7 @@ export function SettingsModal({ isOpen, onClose, initialTab }: SettingsModalProp
   const handleLoadModelLicense = async () => {
     setModelLicenseLoading(true)
     try {
-      const text = await window.electronAPI.fetchLicenseText()
+      const text = await fetchLicenseText()
       setModelLicenseText(text)
       setShowModelLicense(true)
     } catch (e) {
@@ -251,7 +252,7 @@ export function SettingsModal({ isOpen, onClose, initialTab }: SettingsModalProp
   const handleLoadNotices = async () => {
     setNoticesLoading(true)
     try {
-      const text = await window.electronAPI.getNoticesText()
+      const text = await getNoticesText()
       setNoticesText(text)
       setShowNotices(true)
     } catch (e) {
@@ -814,7 +815,7 @@ export function SettingsModal({ isOpen, onClose, initialTab }: SettingsModalProp
                   <ApiKeyHelperRow
                     stopPropagation
                     label="Get FAL API key"
-                    onOpenKey={() => window.electronAPI.openFalApiKeyPage()}
+                    onOpenKey={() => openFalApiKeyPage()}
                   />
                   <div className="flex items-center justify-between">
                     <div className={`text-xs px-2 py-1 rounded inline-flex items-center gap-1.5 ${

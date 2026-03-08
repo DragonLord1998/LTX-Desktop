@@ -1,6 +1,7 @@
 import { useState, useCallback, useRef } from 'react'
 import type { GenerationSettings } from '../components/SettingsPanel'
 import { useAppSettings } from '../contexts/AppSettingsContext'
+import { getBackendUrl } from '../lib/electron-shim'
 
 interface GenerationState {
   isGenerating: boolean
@@ -128,7 +129,7 @@ export function useGeneration(): UseGenerationReturn {
 
     try {
       // Get backend URL from Electron
-      const backendUrl = await window.electronAPI.getBackendUrl()
+      const backendUrl = await getBackendUrl()
 
       // Prepare JSON body
       const body: Record<string, unknown> = {
@@ -267,7 +268,7 @@ export function useGeneration(): UseGenerationReturn {
     
     // Also tell the backend to cancel
     try {
-      const backendUrl = await window.electronAPI.getBackendUrl()
+      const backendUrl = await getBackendUrl()
       await fetch(`${backendUrl}/api/generate/cancel`, {
         method: 'POST',
       })
@@ -288,7 +289,7 @@ export function useGeneration(): UseGenerationReturn {
   ) => {
     if (forceApiGenerations) {
       try {
-        const backendUrl = await window.electronAPI.getBackendUrl()
+        const backendUrl = await getBackendUrl()
         const response = await fetch(`${backendUrl}/api/settings`)
         if (response.ok) {
           const payload = await response.json()
@@ -336,7 +337,7 @@ export function useGeneration(): UseGenerationReturn {
     abortControllerRef.current = new AbortController()
 
     try {
-      const backendUrl = await window.electronAPI.getBackendUrl()
+      const backendUrl = await getBackendUrl()
 
       // Skip prompt enhancement for T2I - use original prompt directly
       const finalPrompt = prompt

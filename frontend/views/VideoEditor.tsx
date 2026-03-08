@@ -20,6 +20,7 @@ import { useAppSettings } from '../contexts/AppSettingsContext'
 import { useGeneration } from '../hooks/use-generation'
 import { Button } from '../components/ui/button'
 import { logger } from '../lib/logger'
+import { extractVideoFrame } from '../lib/electron-shim'
 import { Tooltip } from '../components/ui/tooltip'
 import { ExportModal } from '../components/ExportModal'
 import { MenuBar, type MenuDefinition } from '../components/MenuBar'
@@ -1476,7 +1477,7 @@ export function VideoEditor() {
 
       if (clip.type === 'video') {
         const seekTime = Math.max(0, currentTime - clip.startTime) * clip.speed + clip.trimStart
-        const { url } = await window.electronAPI.extractVideoFrame(clipSrc, seekTime, 1024, 2)
+        const { url } = await extractVideoFrame(clipSrc, seekTime, 1024, 2)
         return url // file:// URL
       }
       return clipSrc // image — already a file:// URL
@@ -4129,7 +4130,8 @@ export function VideoEditor() {
                       variant="outline"
                       className="border-zinc-700 flex-shrink-0"
                       onClick={async () => {
-                        const dir = await window.electronAPI?.showOpenDirectoryDialog({ title: 'Select Asset Folder' })
+                        const { showOpenDirectoryDialog: showDirDialog } = await import('../lib/electron-shim')
+                        const dir = await showDirDialog({ title: 'Select Asset Folder' })
                         if (dir && currentProjectId) {
                           updateProject(currentProjectId, { assetSavePath: dir })
                         }

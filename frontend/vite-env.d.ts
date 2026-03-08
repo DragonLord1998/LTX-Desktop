@@ -12,7 +12,7 @@ interface BackendHealthStatus {
 }
 
 interface Window {
-  electronAPI: {
+  electronAPI?: {
     getBackendUrl: () => Promise<string>
     getModelsPath: () => Promise<string>
     readLocalFile: (filePath: string) => Promise<{ data: string; mimeType: string }>

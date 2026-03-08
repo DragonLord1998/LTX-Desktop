@@ -26,6 +26,8 @@
     "prepare:python:mac": "bash scripts/prepare-python.sh",
     "prepare:python:win": "powershell -ExecutionPolicy Bypass -File scripts/prepare-python.ps1",
     "build:frontend": "vite build",
+    "build:web": "vite build --config vite.config.web.ts",
+    "dev:web": "vite --config vite.config.web.ts",
     "start:unpacked:mac": "open release/mac-arm64/LTX\\ Desktop.app",
     "start:unpacked:win": "powershell -Command \"& '.\\release\\win-unpacked\\LTX Desktop.exe'\""
   },

@@ -1,5 +1,15 @@
 import { useCallback, useEffect, useMemo, useRef, useState } from 'react'
 import { Loader2, AlertCircle, Settings, FileText } from 'lucide-react'
+import {
+  getBackendUrl,
+  checkPythonReady,
+  startPythonBackend,
+  checkFirstRun as shimCheckFirstRun,
+  completeSetup,
+  acceptLicense,
+  openLtxApiKeyPage,
+  openFalApiKeyPage,
+} from './lib/electron-shim'
 import { ProjectProvider, useProjects } from './contexts/ProjectContext'
 import { KeyboardShortcutsProvider } from './contexts/KeyboardShortcutsContext'
 import { AppSettingsProvider, useAppSettings } from './contexts/AppSettingsContext'
@@ -78,7 +88,7 @@ function AppContent() {
   useEffect(() => {
     const check = async () => {
       try {
-        const result = await window.electronAPI.checkPythonReady()
+        const result = await checkPythonReady()
         setPythonReady(result.ready)
       } catch (e) {
         logger.error(`Failed to check Python readiness: ${e}`)
@@ -94,7 +104,7 @@ function AppContent() {
     const start = async () => {
       try {
         logger.info('Starting Python backend...')
-        await window.electronAPI.startPythonBackend()
+        await startPythonBackend()
         logger.info('Python backend started successfully')
       } catch (e) {
         logger.error(`Failed to start Python backend: ${e}`)
@@ -104,16 +114,16 @@ function AppContent() {
   }, [pythonReady, backendStarted])
 
   useEffect(() => {
-    const checkFirstRun = async () => {
+    const doCheckFirstRun = async () => {
       try {
-        const next = await window.electronAPI.checkFirstRun()
+        const next = await shimCheckFirstRun()
         setSetupState(next)
       } catch (e) {
         logger.error(`Failed to check first run: ${e}`)
         setSetupState({ needsSetup: false, needsLicense: false })
       }
     }
-    void checkFirstRun()
+    void doCheckFirstRun()
   }, [])
 
   const handleFirstRunComplete = useCallback(async () => {
@@ -125,7 +135,7 @@ function AppContent() {
     setIsFinalizingFirstRun(true)
 
     const inFlightPromise = (async () => {
-      const ok = await window.electronAPI.completeSetup()
+      const ok = await completeSetup()
       if (!ok) {
         throw new Error('Failed to complete setup.')
       }
@@ -147,7 +157,7 @@ function AppContent() {
   }, [])
 
   const handleAcceptLicense = useCallback(async () => {
-    const ok = await window.electronAPI.acceptLicense()
+    const ok = await acceptLicense()
     if (!ok) {
       throw new Error('Failed to save license acceptance.')
     }
@@ -177,7 +187,7 @@ function AppContent() {
     isForcedFirstRun && isLoaded && settings.hasLtxApiKey && !isFinalizingFirstRun && !firstRunFinalizeError
 
   const areRequiredModelsDownloaded = useCallback(async () => {
-    const backendUrl = await window.electronAPI.getBackendUrl()
+    const backendUrl = await getBackendUrl()
     const response = await fetch(`${backendUrl}/api/models/status`)
     if (!response.ok) {
       throw new Error(`Model status fetch failed with status ${response.status}`)
@@ -295,7 +305,7 @@ function AppContent() {
         inputLabel: 'LTX API key',
         placeholder: 'Enter your LTX API key...',
         onSave: handleSaveLtxKey,
-        onGetKey: () => window.electronAPI.openLtxApiKeyPage(),
+        onGetKey: () => openLtxApiKeyPage(),
         getKeyLabel: 'Get LTX API key',
       },
       {
@@ -307,7 +317,7 @@ function AppContent() {
         inputLabel: 'FAL AI API key',
         placeholder: 'Enter your FAL AI API key...',
         onSave: saveFalApiKey,
-        onGetKey: () => window.electronAPI.openFalApiKeyPage(),
+        onGetKey: () => openFalApiKeyPage(),
         getKeyLabel: 'Get FAL API key',
       },
     ]

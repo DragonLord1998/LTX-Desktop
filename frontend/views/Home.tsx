@@ -3,6 +3,7 @@ import { Plus, Folder, FolderOpen, MoreVertical, Trash2, Pencil, Sparkles } from
 import { useProjects } from '../contexts/ProjectContext'
 import { LtxLogo } from '../components/LtxLogo'
 import { Button } from '../components/ui/button'
+import { getDownloadsPath, showOpenDirectoryDialog } from '../lib/electron-shim'
 import type { Project } from '../types/project'
 
 function formatDate(timestamp: number): string {
@@ -124,7 +125,7 @@ export function Home() {
   const [assetFolderPath, setAssetFolderPath] = useState('')
 
   useEffect(() => {
-    window.electronAPI?.getDownloadsPath().then(p => {
+    getDownloadsPath().then(p => {
       setDefaultDownloadsPath(p)
     }).catch(() => {})
   }, [])
@@ -147,7 +148,7 @@ export function Home() {
   }
 
   const handleBrowseAssetFolder = async (setter: (v: string) => void) => {
-    const dir = await window.electronAPI?.showOpenDirectoryDialog({ title: 'Select Asset Folder' })
+    const dir = await showOpenDirectoryDialog({ title: 'Select Asset Folder' })
     if (dir) setter(dir)
   }
 

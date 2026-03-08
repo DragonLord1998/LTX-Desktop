@@ -1,5 +1,6 @@
 import { useState, useEffect } from 'react'
 import { logger } from '../lib/logger'
+import { fetchLicenseText, getBackendUrl } from '../lib/electron-shim'
 import './FirstRunSetup.css'
 
 interface LaunchGateProps {
@@ -90,7 +91,7 @@ export function LaunchGate({
     setLicenseError(null)
     setLicenseText(null)
     try {
-      const text = await window.electronAPI.fetchLicenseText()
+      const text = await fetchLicenseText()
       setLicenseText(text)
     } catch (e) {
       setLicenseError(e instanceof Error ? e.message : 'Failed to fetch license text.')
@@ -114,7 +115,7 @@ export function LaunchGate({
 
         // Get models path from backend
         try {
-          const url = await window.electronAPI.getBackendUrl()
+          const url = await getBackendUrl()
           setBackendUrl(url)
           const response = await fetch(`${url}/api/models/status`)
           if (response.ok) {

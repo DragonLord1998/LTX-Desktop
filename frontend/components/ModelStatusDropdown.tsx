@@ -1,6 +1,7 @@
 import { useState, useEffect, useRef } from 'react'
 import { Loader2, CheckCircle2, Download, Clock, ChevronDown, AlertCircle } from 'lucide-react'
 import { logger } from '../lib/logger'
+import { getBackendUrl } from '../lib/electron-shim'
 
 interface ModelInfo {
   name: string
@@ -47,7 +48,7 @@ export function ModelStatusDropdown({ className = '' }: ModelStatusDropdownProps
 
   // Fetch backend URL once on mount
   useEffect(() => {
-    window.electronAPI.getBackendUrl().then(setBackendUrl)
+    getBackendUrl().then(setBackendUrl)
   }, [])
 
   // Fetch models status periodically

@@ -2,6 +2,7 @@ import { useState, useEffect, useRef } from 'react'
 import { X, FolderOpen, RefreshCw, ChevronDown, ChevronUp, Download } from 'lucide-react'
 import { Button } from './ui/button'
 import { logger } from '../lib/logger'
+import { getLogs } from '../lib/electron-shim'
 
 interface LogViewerProps {
   isOpen: boolean
@@ -17,11 +18,9 @@ export function LogViewer({ isOpen, onClose, embedded = false }: LogViewerProps)
   const logContainerRef = useRef<HTMLDivElement>(null)
 
   const fetchLogs = async () => {
-    if (!window.electronAPI?.getLogs) return
-    
     setIsLoading(true)
     try {
-      const result = await window.electronAPI.getLogs()
+      const result = await getLogs()
       setLogs(result.lines || [])
       setLogPath(result.logPath || '')
     } catch (error) {
