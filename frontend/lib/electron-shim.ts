@@ -35,6 +35,25 @@ export async function getBackendUrl(): Promise<string> {
 }
 
 // ---------------------------------------------------------------------------
+// Path-to-URL conversion (file:// in Electron, /outputs/ in web mode)
+// ---------------------------------------------------------------------------
+
+/**
+ * Convert a backend file path to a URL the browser/Electron can load.
+ * In Electron: file:// URL. In web: /outputs/<filename> served by FastAPI.
+ */
+export function filePathToUrl(filePath: string): string {
+  if (window.electronAPI) {
+    const normalized = filePath.replace(/\\/g, '/')
+    return normalized.startsWith('/') ? `file://${normalized}` : `file:///${normalized}`
+  }
+  // Web mode: extract the filename and serve via /outputs/ route
+  const normalized = filePath.replace(/\\/g, '/')
+  const filename = normalized.split('/').pop() || ''
+  return `/outputs/${filename}`
+}
+
+// ---------------------------------------------------------------------------
 // Health-status polling (replaces onBackendHealthStatus IPC in web mode)
 // ---------------------------------------------------------------------------
 

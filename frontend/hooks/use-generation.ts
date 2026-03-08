@@ -216,10 +216,9 @@ export function useGeneration(): UseGenerationReturn {
       const result = await response.json()
       
       if (result.status === 'complete' && result.video_path) {
-        // Convert Windows path to proper file:// URL
-        const videoPathNormalized = result.video_path.replace(/\\/g, '/')
-        const fileUrl = videoPathNormalized.startsWith('/') ? `file://${videoPathNormalized}` : `file:///${videoPathNormalized}`
-        
+        const { filePathToUrl } = await import('../lib/electron-shim')
+        const fileUrl = filePathToUrl(result.video_path)
+
         setState({
           isGenerating: false,
           progress: 100,
@@ -406,11 +405,8 @@ export function useGeneration(): UseGenerationReturn {
         }
         
         if (rawPaths.length > 0) {
-          // Convert all paths to file URLs
-          const fileUrls = rawPaths.map((path: string) => {
-            const imagePath = path.replace(/\\/g, '/')
-            return imagePath.startsWith('/') ? `file://${imagePath}` : `file:///${imagePath}`
-          })
+          const { filePathToUrl } = await import('../lib/electron-shim')
+          const fileUrls = rawPaths.map((path: string) => filePathToUrl(path))
           
           setState({
             isGenerating: false,

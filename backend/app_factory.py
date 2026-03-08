@@ -101,6 +101,11 @@ def create_app(
     app.include_router(ic_lora_router)
     app.include_router(runtime_policy_router)
 
+    # Serve generated outputs (videos/images) so the browser can access them
+    outputs_dir = handler._config.outputs_dir
+    if outputs_dir.is_dir():
+        app.mount("/outputs", StaticFiles(directory=outputs_dir), name="outputs")
+
     # Static frontend serving — mount only if the build output exists
     resolved_static = static_dir if static_dir is not None else _DEFAULT_STATIC_DIR
     if resolved_static.is_dir():

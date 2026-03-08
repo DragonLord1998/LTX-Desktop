@@ -59,8 +59,8 @@ export function useRetake() {
       const data = await response.json()
 
       if (response.ok && data.status === 'complete' && data.video_path) {
-        const pathNormalized = data.video_path.replace(/\\/g, '/')
-        const videoUrl = pathNormalized.startsWith('/') ? `file://${pathNormalized}` : `file:///${pathNormalized}`
+        const { filePathToUrl } = await import('../lib/electron-shim')
+        const videoUrl = filePathToUrl(data.video_path)
 
         setState({
           isRetaking: false,

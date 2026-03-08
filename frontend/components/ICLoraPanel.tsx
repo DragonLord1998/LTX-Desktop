@@ -325,8 +325,8 @@ export function ICLoraPanel({
 
       const data = await resp.json()
       if (resp.ok && data.status === 'complete' && data.video_path) {
-        const pathNorm = data.video_path.replace(/\\/g, '/')
-        const url = pathNorm.startsWith('/') ? `file://${pathNorm}` : `file:///${pathNorm}`
+        const { filePathToUrl } = await import('../lib/electron-shim')
+        const url = filePathToUrl(data.video_path)
         setOutputVideoUrl(url)
         setOutputVideoPath(data.video_path)
         setGenerationStatus('Generation complete!')
