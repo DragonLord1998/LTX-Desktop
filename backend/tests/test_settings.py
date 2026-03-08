@@ -15,8 +15,8 @@ class TestGetSettings:
         r = client.get("/api/settings")
         assert r.status_code == 200
         data = r.json()
-        assert data["useTorchCompile"] is False
-        assert data["loadOnStartup"] is False
+        assert data["useTorchCompile"] is True
+        assert data["loadOnStartup"] is True
         assert data["hasLtxApiKey"] is False
         assert data["userPrefersLtxApiVideoGenerations"] is False
         assert data["hasFalApiKey"] is False

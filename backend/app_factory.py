@@ -112,7 +112,7 @@ def create_app(
         app.mount("/assets", StaticFiles(directory=resolved_static / "assets"), name="assets")
 
         @app.get("/{full_path:path}", include_in_schema=False)
-        async def serve_spa(full_path: str) -> FileResponse:
+        async def serve_spa(full_path: str) -> FileResponse:  # noqa: F811  # pyright: ignore[reportUnusedFunction]
             """Catch-all: serve index.html for client-side routing."""
             return FileResponse(resolved_static / "index.html")
 
