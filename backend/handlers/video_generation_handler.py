@@ -136,6 +136,9 @@ class VideoGenerationHandler(StateHandlerBase):
         seed = self._resolve_seed()
 
         try:
+            # Load pipeline BEFORE marking generation as running so the
+            # ZIT-to-video pipeline swap doesn't hit the running-generation guard.
+            self._pipelines.load_gpu_pipeline(model_type, should_warm=False)
             self._generation.start_generation(generation_id)
 
             output_path = self.generate_video(
