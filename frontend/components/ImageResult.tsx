@@ -8,14 +8,16 @@ interface ImageResultProps {
   progress: number
   statusMessage: string
   onCreateVideo: () => void
+  onEdit?: () => void
 }
 
-export function ImageResult({ 
-  imageUrl, 
-  isGenerating, 
-  progress, 
+export function ImageResult({
+  imageUrl,
+  isGenerating,
+  progress,
   statusMessage,
-  onCreateVideo 
+  onCreateVideo,
+  onEdit,
 }: ImageResultProps) {
   const [isHovered, setIsHovered] = useState(false)
 
@@ -114,6 +116,7 @@ export function ImageResult({
               <div className="absolute top-1/2 left-1/2 transform -translate-x-1/2 -translate-y-1/2 flex items-center gap-3">
                 <Button
                   variant="ghost"
+                  onClick={onEdit}
                   className="h-10 px-4 bg-black/50 hover:bg-black/70 text-white rounded-full backdrop-blur-sm flex items-center gap-2"
                   title="Edit image"
                 >

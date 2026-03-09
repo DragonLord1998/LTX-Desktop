@@ -21,6 +21,7 @@ from handlers import (
     TextHandler,
     VideoGenerationHandler,
 )
+from handlers.qwen_edit_handler import QwenEditHandler
 from runtime_config.runtime_config import RuntimeConfig
 from services.interfaces import (
     A2VPipeline,
@@ -34,6 +35,7 @@ from services.interfaces import (
     IcLoraPipeline,
     LTXAPIClient,
     ModelDownloader,
+    QwenImageEditPipeline,
     RetakePipeline,
     TaskRunner,
     TextEncoder,
@@ -65,6 +67,7 @@ class AppHandler:
         retake_pipeline_class: type[RetakePipeline],
         ic_lora_model_downloader: IcLoraModelDownloader,
         dev_video_pipeline_class: type[FastVideoPipeline] | None = None,
+        qwen_edit_pipeline_class: type[QwenImageEditPipeline] | None = None,
     ) -> None:
         self.config = config
 
@@ -84,6 +87,7 @@ class AppHandler:
         self.a2v_pipeline_class = a2v_pipeline_class
         self.retake_pipeline_class = retake_pipeline_class
         self.ic_lora_model_downloader = ic_lora_model_downloader
+        self.qwen_edit_pipeline_class = qwen_edit_pipeline_class
 
         self._lock = threading.RLock()
 
@@ -95,6 +99,9 @@ class AppHandler:
                 "zit": None,
                 "dev_checkpoint": None,
                 "distilled_lora": None,
+                "qwen_transformer": None,
+                "qwen_text_encoder": None,
+                "qwen_vae": None,
             },
             downloading_session=None,
             gpu_slot=None,
@@ -151,6 +158,7 @@ class AppHandler:
             outputs_dir=config.outputs_dir,
             device=config.device,
             dev_video_pipeline_class=dev_video_pipeline_class,
+            qwen_edit_pipeline_class=qwen_edit_pipeline_class,
         )
 
         self.generation = GenerationHandler(state=self.state, lock=self._lock)
@@ -219,6 +227,17 @@ class AppHandler:
             outputs_dir=config.outputs_dir,
         )
 
+        qwen_loras_dir = config.outputs_dir.parent / "qwen-edit-loras"
+        self.qwen_edit = QwenEditHandler(
+            state=self.state,
+            lock=self._lock,
+            generation_handler=self.generation,
+            pipelines_handler=self.pipelines,
+            outputs_dir=config.outputs_dir,
+            config=config,
+            loras_dir=qwen_loras_dir,
+        )
+
         self.downloads.cleanup_downloading_dir()
         self.models.refresh_available_files()
 
@@ -241,6 +260,7 @@ class ServiceBundle:
     retake_pipeline_class: type[RetakePipeline]
     ic_lora_model_downloader: IcLoraModelDownloader
     dev_video_pipeline_class: type[FastVideoPipeline] | None = None
+    qwen_edit_pipeline_class: type[QwenImageEditPipeline] | None = None
 
 
 def build_default_service_bundle(config: RuntimeConfig) -> ServiceBundle:
@@ -314,4 +334,5 @@ def build_initial_state(
         retake_pipeline_class=bundle.retake_pipeline_class,
         ic_lora_model_downloader=bundle.ic_lora_model_downloader,
         dev_video_pipeline_class=bundle.dev_video_pipeline_class,
+        qwen_edit_pipeline_class=bundle.qwen_edit_pipeline_class,
     )

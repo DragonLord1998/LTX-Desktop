@@ -321,3 +321,27 @@ class IcLoraGenerateRequest(BaseModel):
     cfg_guidance_scale: float = 1.0
     negative_prompt: str = ""
     images: list[IcLoraImageInput] = Field(default_factory=_default_ic_lora_images)
+
+
+class QwenEditRequest(BaseModel):
+    image_path: str
+    instruction: str
+    lora_id: str | None = None
+    lora_strength: float = 0.8
+    seed: int | None = None
+    num_steps: int = 40
+
+
+class QwenEditResponse(BaseModel):
+    status: str
+    image_path: str | None = None
+
+
+class QwenLoraInfo(BaseModel):
+    id: str
+    name: str
+    description: str | None = None
+
+
+class QwenLoraListResponse(BaseModel):
+    loras: list[QwenLoraInfo]

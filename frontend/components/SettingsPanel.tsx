@@ -20,6 +20,10 @@ export interface GenerationSettings {
   imageAspectRatio: string
   imageSteps: number
   variations?: number  // Number of image variations to generate
+  // Image-edit settings
+  editLoraId?: string
+  editLoraStrength?: number
+  editNumSteps?: number
 }
 
 interface SettingsPanelProps {
@@ -40,6 +44,7 @@ export function SettingsPanel({
   hasAudio = false,
 }: SettingsPanelProps) {
   const isImageMode = mode === 'text-to-image'
+  const isImageEditMode = mode === 'image-edit'
   const LOCAL_MAX_DURATION: Record<string, number> = { '540p': 20, '720p': 10, '1080p': 5 }
 
   const handleChange = (key: keyof GenerationSettings, value: string | number | boolean) => {
@@ -68,6 +73,57 @@ export function SettingsPanel({
     ? (hasAudio ? ['1080p'] : [...FORCED_API_VIDEO_RESOLUTIONS])
     : ['1080p', '720p', '540p']
   const fpsOptions = forceApiGenerations ? [...FORCED_API_VIDEO_FPS] : [24, 25, 50]
+
+  // Image-edit mode settings
+  // TODO: fetch LoRA list dynamically from /api/qwen-edit/list-loras on mount
+  if (isImageEditMode) {
+    return (
+      <div className="space-y-4">
+        <div className="space-y-1.5">
+          <label className="block text-[12px] font-semibold text-zinc-500 uppercase leading-4">LoRA</label>
+          <select
+            value={settings.editLoraId ?? 'none'}
+            onChange={(e) => onSettingsChange({ ...settings, editLoraId: e.target.value })}
+            disabled={disabled}
+            className="w-full bg-zinc-900 border border-zinc-700 text-zinc-100 text-sm rounded-lg px-3 py-2 focus:outline-none focus:ring-1 focus:ring-zinc-500 disabled:opacity-50 disabled:cursor-not-allowed"
+          >
+            <option value="none">None (Base Model)</option>
+            <option value="hyper-realistic-portrait">Hyper-Realistic Portrait</option>
+            <option value="anything2real">Anything2Real</option>
+          </select>
+        </div>
+
+        <div className="space-y-1.5">
+          <label className="block text-[12px] font-semibold text-zinc-500 uppercase leading-4">
+            LoRA Strength — {(settings.editLoraStrength ?? 0.8).toFixed(1)}
+          </label>
+          <input
+            type="range"
+            min={0}
+            max={1}
+            step={0.1}
+            value={settings.editLoraStrength ?? 0.8}
+            onChange={(e) => onSettingsChange({ ...settings, editLoraStrength: parseFloat(e.target.value) })}
+            disabled={disabled}
+            className="w-full accent-blue-500 disabled:opacity-50 disabled:cursor-not-allowed"
+          />
+        </div>
+
+        <div className="space-y-1.5">
+          <label className="block text-[12px] font-semibold text-zinc-500 uppercase leading-4">Steps</label>
+          <input
+            type="number"
+            min={1}
+            max={100}
+            value={settings.editNumSteps ?? 40}
+            onChange={(e) => onSettingsChange({ ...settings, editNumSteps: parseInt(e.target.value) })}
+            disabled={disabled}
+            className="w-full bg-zinc-900 border border-zinc-700 text-zinc-100 text-sm rounded-lg px-3 py-2 focus:outline-none focus:ring-1 focus:ring-zinc-500 disabled:opacity-50 disabled:cursor-not-allowed"
+          />
+        </div>
+      </div>
+    )
+  }
 
   // Image mode settings
   if (isImageMode) {

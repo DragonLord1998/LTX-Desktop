@@ -19,6 +19,7 @@ from _routes.ic_lora import router as ic_lora_router
 from _routes.image_gen import router as image_gen_router
 from _routes.models import router as models_router
 from _routes.suggest_gap_prompt import router as suggest_gap_prompt_router
+from _routes.qwen_edit import router as qwen_edit_router
 from _routes.retake import router as retake_router
 from _routes.runtime_policy import router as runtime_policy_router
 from _routes.settings import router as settings_router
@@ -99,6 +100,7 @@ def create_app(
     app.include_router(suggest_gap_prompt_router)
     app.include_router(retake_router)
     app.include_router(ic_lora_router)
+    app.include_router(qwen_edit_router)
     app.include_router(runtime_policy_router)
 
     # Serve generated outputs (videos/images) so the browser can access them

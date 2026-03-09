@@ -14,6 +14,7 @@ if TYPE_CHECKING:
         FastVideoPipeline,
         ImageGenerationPipeline,
         IcLoraPipeline,
+        QwenImageEditPipeline,
         RetakePipeline,
         TextEncoder,
     )
@@ -24,7 +25,7 @@ if TYPE_CHECKING:
 # Model file availability (disk truth)
 # ============================================================
 
-ModelFileType = Literal["checkpoint", "upsampler", "text_encoder", "zit", "dev_checkpoint", "distilled_lora"]
+ModelFileType = Literal["checkpoint", "upsampler", "text_encoder", "zit", "dev_checkpoint", "distilled_lora", "qwen_transformer", "qwen_text_encoder", "qwen_vae"]
 
 # Availability and download are orthogonal concerns.
 AvailableFiles = dict[ModelFileType, Path | None]
@@ -124,6 +125,13 @@ class RetakePipelineState:
     quantized: bool
 
 
+@dataclass
+class QwenEditPipelineState:
+    pipeline: QwenImageEditPipeline
+    active_lora: str | None = None
+    quantization: str = "fp8"
+
+
 # ============================================================
 # Generation state
 # ============================================================
@@ -170,7 +178,7 @@ GenerationState = GenerationRunning | GenerationComplete | GenerationError | Gen
 
 @dataclass
 class GpuSlot:
-    active_pipeline: VideoPipelineState | ICLoraState | A2VPipelineState | RetakePipelineState | ImageGenerationPipeline
+    active_pipeline: VideoPipelineState | ICLoraState | A2VPipelineState | RetakePipelineState | QwenEditPipelineState | ImageGenerationPipeline
     generation: GenerationState | None
 
 

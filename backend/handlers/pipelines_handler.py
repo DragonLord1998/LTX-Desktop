@@ -17,6 +17,7 @@ from services.interfaces import (
     ImageGenerationPipeline,
     GpuCleaner,
     IcLoraPipeline,
+    QwenImageEditPipeline,
     RetakePipeline,
     VideoPipelineModelType,
 )
@@ -28,6 +29,7 @@ from state.app_state_types import (
     GenerationRunning,
     GpuSlot,
     ICLoraState,
+    QwenEditPipelineState,
     RetakePipelineState,
     VideoPipelineState,
     VideoPipelineWarmth,
@@ -57,6 +59,7 @@ class PipelinesHandler(StateHandlerBase):
         outputs_dir: Path,
         device: torch.device,
         dev_video_pipeline_class: type[FastVideoPipeline] | None = None,
+        qwen_edit_pipeline_class: type[QwenImageEditPipeline] | None = None,
     ) -> None:
         super().__init__(state, lock)
         self._text_handler = text_handler
@@ -67,6 +70,7 @@ class PipelinesHandler(StateHandlerBase):
         self._ic_lora_pipeline_class = ic_lora_pipeline_class
         self._a2v_pipeline_class = a2v_pipeline_class
         self._retake_pipeline_class = retake_pipeline_class
+        self._qwen_edit_pipeline_class = qwen_edit_pipeline_class
         self._config = config
         self._outputs_dir = outputs_dir
         self._device = device
@@ -89,7 +93,7 @@ class PipelinesHandler(StateHandlerBase):
     def _assert_invariants(self) -> None:
         gpu_is_zit = False
         match self.state.gpu_slot:
-            case GpuSlot(active_pipeline=VideoPipelineState() | ICLoraState() | A2VPipelineState() | RetakePipelineState()):
+            case GpuSlot(active_pipeline=VideoPipelineState() | ICLoraState() | A2VPipelineState() | RetakePipelineState() | QwenEditPipelineState()):
                 gpu_is_zit = False
             case GpuSlot():
                 gpu_is_zit = True
@@ -197,7 +201,7 @@ class PipelinesHandler(StateHandlerBase):
                 return
 
             active = self.state.gpu_slot.active_pipeline
-            if isinstance(active, (VideoPipelineState, ICLoraState, A2VPipelineState, RetakePipelineState)):
+            if isinstance(active, (VideoPipelineState, ICLoraState, A2VPipelineState, RetakePipelineState, QwenEditPipelineState)):
                 return
 
             generation = self.state.gpu_slot.generation
@@ -219,7 +223,7 @@ class PipelinesHandler(StateHandlerBase):
         with self._lock:
             if self.state.gpu_slot is not None:
                 active = self.state.gpu_slot.active_pipeline
-                if not isinstance(active, (VideoPipelineState, ICLoraState, A2VPipelineState, RetakePipelineState)):
+                if not isinstance(active, (VideoPipelineState, ICLoraState, A2VPipelineState, RetakePipelineState, QwenEditPipelineState)):
                     return active
                 self._ensure_no_running_generation()
 
@@ -279,7 +283,7 @@ class PipelinesHandler(StateHandlerBase):
                 return
 
             active = self.state.gpu_slot.active_pipeline
-            if isinstance(active, (VideoPipelineState, ICLoraState, A2VPipelineState, RetakePipelineState)):
+            if isinstance(active, (VideoPipelineState, ICLoraState, A2VPipelineState, RetakePipelineState, QwenEditPipelineState)):
                 self.state.gpu_slot = None
                 self._assert_invariants()
                 should_cleanup = True
@@ -409,3 +413,38 @@ class PipelinesHandler(StateHandlerBase):
         state = self.load_gpu_pipeline(model_type, should_warm=False)
         warmup_path = self._outputs_dir / f"_warmup_{model_type}.mp4"
         state.pipeline.warmup(output_path=str(warmup_path))
+
+    def load_qwen_edit_pipeline(self) -> QwenEditPipelineState:
+        with self._lock:
+            match self.state.gpu_slot:
+                case GpuSlot(active_pipeline=QwenEditPipelineState() as state):
+                    return state
+                case _:
+                    pass
+
+        self._evict_gpu_pipeline_for_swap()
+
+        vram = get_gpu_vram_gb(self._device)
+        if vram is not None and vram >= 48:
+            quantization = "bf16"
+        elif vram is not None and vram >= 36:
+            quantization = "fp8"
+        else:
+            quantization = "nf4"
+
+        if self._qwen_edit_pipeline_class is None:
+            raise RuntimeError("Qwen edit pipeline class not configured")
+
+        pipeline = self._qwen_edit_pipeline_class.create(
+            transformer_path=str(self._config.model_path("qwen_transformer")),
+            text_encoder_path=str(self._config.model_path("qwen_text_encoder")),
+            vae_path=str(self._config.model_path("qwen_vae")),
+            device=self._device,
+            quantization=quantization,
+        )
+        state = QwenEditPipelineState(pipeline=pipeline, quantization=quantization)
+
+        with self._lock:
+            self.state.gpu_slot = GpuSlot(active_pipeline=state, generation=None)
+            self._assert_invariants()
+        return state

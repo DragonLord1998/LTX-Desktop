@@ -1,5 +1,5 @@
 import { useState, useRef, useEffect } from 'react'
-import { Sparkles, Trash2, Square, ImageIcon, ArrowLeft, Scissors } from 'lucide-react'
+import { Sparkles, Trash2, Square, ImageIcon, ArrowLeft, Scissors, Pencil } from 'lucide-react'
 import { logger } from '../lib/logger'
 import { ImageUploader } from '../components/ImageUploader'
 import { AudioUploader } from '../components/AudioUploader'
@@ -13,6 +13,7 @@ import { Textarea } from '../components/ui/textarea'
 import { Button } from '../components/ui/button'
 import { useGeneration } from '../hooks/use-generation'
 import { useRetake } from '../hooks/use-retake'
+import { useImageEdit } from '../hooks/use-image-edit'
 import { useBackend } from '../hooks/use-backend'
 import { useProjects } from '../contexts/ProjectContext'
 import { useAppSettings } from '../contexts/AppSettingsContext'
@@ -42,6 +43,8 @@ export function Playground() {
   const [selectedImage, setSelectedImage] = useState<string | null>(null)
   const [selectedAudio, setSelectedAudio] = useState<string | null>(null)
   const [settings, setSettings] = useState<GenerationSettings>(() => ({ ...DEFAULT_SETTINGS }))
+
+  const [editImagePath, setEditImagePath] = useState<string | null>(null)
 
   const { status, processStatus } = useBackend()
 
@@ -89,6 +92,16 @@ export function Playground() {
     retakeResult,
   } = useRetake()
 
+  const {
+    isEditing,
+    progress: editProgress,
+    statusMessage: editStatusMessage,
+    editResult,
+    editImage,
+    cancelEdit,
+    resetEdit,
+  } = useImageEdit()
+
   const [retakeInput, setRetakeInput] = useState({
     videoUrl: null as string | null,
     videoPath: null as string | null,
@@ -112,6 +125,20 @@ export function Playground() {
         prompt,
         mode: 'replace_audio_and_video',
       })
+      return
+    }
+
+    if (mode === 'image-edit') {
+      if (!editImagePath || !prompt.trim()) return
+      const sourcePath = fileUrlToPath(editImagePath)
+      if (!sourcePath) return
+      editImage(
+        sourcePath,
+        prompt,
+        settings.editLoraId ?? 'none',
+        settings.editLoraStrength ?? 0.8,
+        settings.editNumSteps ?? 40,
+      )
       return
     }
 
@@ -145,10 +172,18 @@ export function Playground() {
     generatedImageRef.current = imageUrl
   }
 
+  // Handle "Edit" button from ImageResult — pre-fill source image and switch to edit mode
+  const handleEditFromImage = () => {
+    if (!imageUrl) return
+    setEditImagePath(imageUrl)
+    setMode('image-edit')
+  }
+
   const handleClearAll = () => {
     setPrompt('')
     setSelectedImage(null)
     setSelectedAudio(null)
+    setEditImagePath(null)
     const baseDefaults = { ...DEFAULT_SETTINGS }
     const shouldSanitizeVideoSettings = shouldVideoGenerateWithLtxApi && mode !== 'text-to-image'
     setSettings(shouldSanitizeVideoSettings ? sanitizeForcedApiVideoSettings(baseDefaults) : baseDefaults)
@@ -163,16 +198,20 @@ export function Playground() {
     })
     setRetakePanelKey((prev) => prev + 1)
     resetRetake()
+    resetEdit()
     reset()
   }
 
   const isRetakeMode = mode === 'retake'
+  const isImageEditMode = mode === 'image-edit'
   const isVideoMode = mode === 'text-to-video' || mode === 'image-to-video'
-  const isBusy = isRetakeMode ? isRetaking : isGenerating
+  const isBusy = isRetakeMode ? isRetaking : isImageEditMode ? isEditing : isGenerating
   const canGenerate = processStatus === 'alive' && !isBusy && (
     isRetakeMode
       ? retakeInput.ready && !!retakeInput.videoPath
-      : !!prompt.trim()
+      : isImageEditMode
+        ? !!editImagePath && !!prompt.trim()
+        : !!prompt.trim()
   )
 
   return (
@@ -230,6 +269,14 @@ export function Playground() {
                   onAudioSelect={setSelectedAudio}
                 />
               </>
+            )}
+
+            {/* Source image for image-edit mode (required) */}
+            {isImageEditMode && (
+              <ImageUploader
+                selectedImage={editImagePath}
+                onImageSelect={setEditImagePath}
+              />
             )}
 
             {isRetakeMode && (
@@ -300,13 +347,13 @@ export function Playground() {
                 Clear all
               </Button>
               
-              {isGenerating ? (
+              {isBusy ? (
                 <Button
-                  onClick={cancel}
+                  onClick={isImageEditMode ? cancelEdit : cancel}
                   className="flex-1 flex items-center justify-center gap-2 bg-red-600 hover:bg-red-500 text-white"
                 >
                   <Square className="h-4 w-4" />
-                  Stop generation
+                  Stop
                 </Button>
               ) : (
                 <Button
@@ -318,6 +365,11 @@ export function Playground() {
                     <>
                       <Scissors className="h-4 w-4" />
                       {isRetaking ? 'Retaking...' : 'Retake'}
+                    </>
+                  ) : isImageEditMode ? (
+                    <>
+                      <Pencil className="h-4 w-4" />
+                      Edit image
                     </>
                   ) : mode === 'text-to-image' ? (
                     <>
@@ -345,6 +397,20 @@ export function Playground() {
               progress={progress}
               statusMessage={statusMessage}
               onCreateVideo={handleCreateVideoFromImage}
+              onEdit={handleEditFromImage}
+            />
+          ) : mode === 'image-edit' ? (
+            <ImageResult
+              imageUrl={editResult}
+              isGenerating={isEditing}
+              progress={editProgress}
+              statusMessage={editStatusMessage}
+              onCreateVideo={() => {
+                if (editResult) {
+                  setSelectedImage(editResult)
+                  setMode('image-to-video')
+                }
+              }}
             />
           ) : mode === 'retake' ? (
             <VideoPlayer

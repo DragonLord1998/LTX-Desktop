@@ -29,6 +29,9 @@ MODEL_FILE_ORDER: tuple[ModelFileType, ...] = (
     "zit",
     "dev_checkpoint",
     "distilled_lora",
+    "qwen_transformer",
+    "qwen_text_encoder",
+    "qwen_vae",
 )
 
 
@@ -74,6 +77,27 @@ DEFAULT_MODEL_DOWNLOAD_SPECS: dict[ModelFileType, ModelFileDownloadSpec] = {
         is_folder=False,
         repo_id="Lightricks/LTX-2.3",
         description="Distilled LoRA for dev model two-stage refinement",
+    ),
+    "qwen_transformer": ModelFileDownloadSpec(
+        relative_path=Path("qwen-image-edit-transformer"),
+        expected_size_bytes=10_000_000_000,
+        is_folder=True,
+        repo_id="Qwen/Qwen-Image-Edit-2511",
+        description="Qwen Image Edit transformer (instruction-based editing)",
+    ),
+    "qwen_text_encoder": ModelFileDownloadSpec(
+        relative_path=Path("qwen-image-text-encoder"),
+        expected_size_bytes=5_000_000_000,
+        is_folder=True,
+        repo_id="Qwen/Qwen-Image",
+        description="Qwen Image text encoder",
+    ),
+    "qwen_vae": ModelFileDownloadSpec(
+        relative_path=Path("qwen-image-vae"),
+        expected_size_bytes=500_000_000,
+        is_folder=True,
+        repo_id="Qwen/Qwen-Image",
+        description="Qwen Image VAE",
     ),
 }
 
