@@ -54,6 +54,12 @@ A2V_FORCED_API_RESOLUTION = "1920x1080"
 FORCED_API_ALLOWED_ASPECT_RATIOS = {"16:9", "9:16"}
 FORCED_API_ALLOWED_FPS = {24, 25, 48, 50}
 
+_RESOLUTION_MAP_16_9: dict[str, tuple[int, int]] = {
+    "540p": (960, 544),
+    "720p": (1280, 704),
+    "1080p": (1920, 1088),
+}
+
 
 def _get_allowed_durations(model_id: str, resolution_label: str, fps: int) -> set[int]:
     if model_id == "ltx-2-3-fast" and resolution_label == "1080p" and fps in {24, 25}:
@@ -87,6 +93,24 @@ class VideoGenerationHandler(StateHandlerBase):
         self._camera_motion_prompts = camera_motion_prompts
         self._default_negative_prompt = default_negative_prompt
 
+    @staticmethod
+    def _resolve_resolution(resolution: str, aspect_ratio: str) -> tuple[int, int]:
+        """Map resolution label + aspect ratio to (width, height) in pixels."""
+        w, h = _RESOLUTION_MAP_16_9.get(resolution, (960, 544))
+        if aspect_ratio == "9:16":
+            return h, w
+        return w, h
+
+    def _build_prompts(self, prompt: str, camera_motion: VideoCameraMotion, negative_prompt: str) -> tuple[str, str]:
+        """Return (enhanced_prompt, negative_prompt) with camera motion and fallback."""
+        enhanced = prompt + self._camera_motion_prompts.get(camera_motion, "")
+        neg = negative_prompt if negative_prompt else self._default_negative_prompt
+        return enhanced, neg
+
+    @staticmethod
+    def _parse_duration_fps(req: GenerateVideoRequest) -> tuple[int, int]:
+        return int(float(req.duration)), int(float(req.fps))
+
     def generate(self, req: GenerateVideoRequest) -> GenerateVideoResponse:
         if self.state.app_settings.comfyui.enabled and self._comfyui_client is not None:
             return self._generate_comfyui(req)
@@ -100,36 +124,16 @@ class VideoGenerationHandler(StateHandlerBase):
         if self._generation.is_generation_running():
             raise HTTPError(409, "Generation already in progress")
 
-        resolution = req.resolution
-
-        duration = int(float(req.duration))
-        fps = int(float(req.fps))
+        duration, fps = self._parse_duration_fps(req)
 
         audio_path = normalize_optional_path(req.audioPath)
         if audio_path:
             return self._generate_a2v(req, duration, fps, audio_path=audio_path)
 
         model_type = LOCAL_MODEL_MAP.get(req.model.strip().lower(), "fast")
-        logger.info("Resolution %s - using %s pipeline", resolution, model_type)
+        logger.info("Resolution %s - using %s pipeline", req.resolution, model_type)
 
-        RESOLUTION_MAP_16_9: dict[str, tuple[int, int]] = {
-            "540p": (960, 544),
-            "720p": (1280, 704),
-            "1080p": (1920, 1088),
-        }
-
-        def get_16_9_size(res: str) -> tuple[int, int]:
-            return RESOLUTION_MAP_16_9.get(res, (960, 544))
-
-        def get_9_16_size(res: str) -> tuple[int, int]:
-            w, h = get_16_9_size(res)
-            return h, w
-
-        match req.aspectRatio:
-            case "9:16":
-                width, height = get_9_16_size(resolution)
-            case "16:9":
-                width, height = get_16_9_size(resolution)
+        width, height = self._resolve_resolution(req.resolution, req.aspectRatio)
 
         num_frames = self._compute_num_frames(duration, fps)
 
@@ -412,29 +416,10 @@ class VideoGenerationHandler(StateHandlerBase):
 
         generation_id = self._make_generation_id()
         comfyui_settings = self.state.app_settings.comfyui
+        self._comfyui_client.server_url = comfyui_settings.server_url
 
-        resolution = req.resolution
-        duration = int(float(req.duration))
-        fps = int(float(req.fps))
-
-        RESOLUTION_MAP_16_9: dict[str, tuple[int, int]] = {
-            "540p": (960, 544),
-            "720p": (1280, 704),
-            "1080p": (1920, 1088),
-        }
-
-        def get_16_9_size(res: str) -> tuple[int, int]:
-            return RESOLUTION_MAP_16_9.get(res, (960, 544))
-
-        def get_9_16_size(res: str) -> tuple[int, int]:
-            w, h = get_16_9_size(res)
-            return h, w
-
-        match req.aspectRatio:
-            case "9:16":
-                width, height = get_9_16_size(resolution)
-            case "16:9":
-                width, height = get_16_9_size(resolution)
+        duration, fps = self._parse_duration_fps(req)
+        width, height = self._resolve_resolution(req.resolution, req.aspectRatio)
 
         num_frames = self._compute_num_frames(duration, fps)
         seed = self._resolve_seed()
@@ -446,10 +431,8 @@ class VideoGenerationHandler(StateHandlerBase):
             image_filename = self._comfyui_client.upload_image(str(validated_image))
             logger.info("Uploaded image to ComfyUI: %s -> %s", image_path, image_filename)
 
-        enhanced_prompt = req.prompt + self._camera_motion_prompts.get(req.cameraMotion, "")
-        neg = req.negativePrompt if req.negativePrompt else self._default_negative_prompt
-
-        model_type = req.model.strip().lower()
+        enhanced_prompt, neg = self._build_prompts(req.prompt, req.cameraMotion, req.negativePrompt)
+        model_type = LOCAL_MODEL_MAP.get(req.model.strip().lower(), "fast")
 
         workflow_params = WorkflowParams(
             prompt=enhanced_prompt,
@@ -459,7 +442,7 @@ class VideoGenerationHandler(StateHandlerBase):
             num_frames=num_frames,
             fps=fps,
             seed=seed,
-            model=model_type if model_type in ("fast", "dev") else "fast",
+            model=model_type,
             image_filename=image_filename,
             checkpoint_name=comfyui_settings.checkpoint_name,
             dev_checkpoint_name=comfyui_settings.dev_checkpoint_name,

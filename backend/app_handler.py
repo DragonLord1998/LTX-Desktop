@@ -245,6 +245,16 @@ class AppHandler:
         self.downloads.cleanup_downloading_dir()
         self.models.refresh_available_files()
 
+    def check_comfyui_status(self) -> str:
+        """Return ComfyUI server availability: 'not_configured', 'available', or 'unavailable'."""
+        if self.comfyui_client is None:
+            return "not_configured"
+        # Read server_url from settings so the check hits the user-configured URL.
+        self.comfyui_client.server_url = self.state.app_settings.comfyui.server_url
+        if self.comfyui_client.is_available():
+            return "available"
+        return "unavailable"
+
 
 @dataclass
 class ServiceBundle:
@@ -291,7 +301,7 @@ def build_default_service_bundle(config: RuntimeConfig) -> ServiceBundle:
 
     http = HTTPClientImpl()
 
-    comfyui = ComfyUIClientImpl(http=http, server_url="http://127.0.0.1:8188")
+    comfyui = ComfyUIClientImpl(http=http)
 
     return ServiceBundle(
         http=http,

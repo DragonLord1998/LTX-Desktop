@@ -16,10 +16,4 @@ def route_comfyui_status(
     handler: AppHandler = Depends(get_state_service),
 ) -> StatusResponse:
     """GET /api/comfyui/status — check if ComfyUI server is reachable."""
-    if handler.comfyui_client is None:
-        return StatusResponse(status="not_configured")
-
-    if handler.comfyui_client.is_available():
-        return StatusResponse(status="available")
-
-    return StatusResponse(status="unavailable")
+    return StatusResponse(status=handler.check_comfyui_status())

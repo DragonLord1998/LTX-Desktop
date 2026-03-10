@@ -31,10 +31,18 @@ _WS_TIMEOUT_SECONDS = 600
 class ComfyUIClientImpl:
     """Client that communicates with a running ComfyUI server."""
 
-    def __init__(self, *, http: HTTPClient, server_url: str) -> None:
+    def __init__(self, *, http: HTTPClient, server_url: str = "http://127.0.0.1:8188") -> None:
         self._http = http
-        self._server_url = server_url.rstrip("/")
+        self.server_url = server_url
         self._client_id = uuid.uuid4().hex
+
+    @property
+    def server_url(self) -> str:
+        return self._server_url
+
+    @server_url.setter
+    def server_url(self, value: str) -> None:
+        self._server_url = value.rstrip("/")
 
     @property
     def _ws_url(self) -> str:
@@ -49,7 +57,7 @@ class ComfyUIClientImpl:
 
     def is_available(self) -> bool:
         try:
-            resp = self._http.get(f"{self._server_url}/system_stats", timeout=5)
+            resp = self._http.get(f"{self._server_url}/system_stats", timeout=2)
             return resp.status_code == 200
         except Exception:
             return False
@@ -151,16 +159,17 @@ class ComfyUIClientImpl:
 
     def upload_image(self, image_path: str, *, subfolder: str = "") -> str:
         path = Path(image_path)
-        with open(path, "rb") as f:
-            file_data = f.read()
-
+        # Sanitise filename for Content-Disposition header
+        safe_name = path.name.replace('"', "_")
         boundary = uuid.uuid4().hex
-        body = io.BytesIO()
 
+        body = io.BytesIO()
         body.write(f"--{boundary}\r\n".encode())
-        body.write(f'Content-Disposition: form-data; name="image"; filename="{path.name}"\r\n'.encode())
-        body.write(b"Content-Type: image/png\r\n\r\n")
-        body.write(file_data)
+        body.write(f'Content-Disposition: form-data; name="image"; filename="{safe_name}"\r\n'.encode())
+        body.write(b"Content-Type: application/octet-stream\r\n\r\n")
+        # Stream file directly into body to avoid an extra copy
+        with open(path, "rb") as f:
+            body.write(f.read())
         body.write(b"\r\n")
 
         if subfolder:
