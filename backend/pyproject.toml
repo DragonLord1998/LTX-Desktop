@@ -26,6 +26,7 @@ dependencies = [
     "fastapi>=0.115.0",
     "uvicorn[standard]>=0.30.0",
     "python-multipart>=0.0.9",
+    "websocket-client>=1.6.0",
     "triton-windows; sys_platform == 'win32'",
 ]
 

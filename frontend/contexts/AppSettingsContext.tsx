@@ -10,6 +10,18 @@ export interface FastModelSettings {
   useUpscaler: boolean
 }
 
+export interface ComfyUISettings {
+  enabled: boolean
+  serverUrl: string
+  checkpointName: string
+  devCheckpointName: string
+  textEncoderName: string
+  upscalerName: string
+  distilledLoraName: string
+  loraStrength: number
+  useTwoStage: boolean
+}
+
 export interface AppSettings {
   useTorchCompile: boolean
   loadOnStartup: boolean
@@ -25,6 +37,19 @@ export interface AppSettings {
   promptEnhancerEnabledI2V: boolean
   seedLocked: boolean
   lockedSeed: number
+  comfyui: ComfyUISettings
+}
+
+export const DEFAULT_COMFYUI_SETTINGS: ComfyUISettings = {
+  enabled: false,
+  serverUrl: 'http://127.0.0.1:8188',
+  checkpointName: 'ltx-2.3-22b-distilled.safetensors',
+  devCheckpointName: 'ltx-2.3-22b-dev.safetensors',
+  textEncoderName: 'comfy_gemma_3_12B_it.safetensors',
+  upscalerName: 'ltx-2.3-spatial-upscaler-x2-1.0.safetensors',
+  distilledLoraName: 'ltx-2.3-22b-distilled-lora-384.safetensors',
+  loraStrength: 0.5,
+  useTwoStage: false,
 }
 
 export const DEFAULT_APP_SETTINGS: AppSettings = {
@@ -42,6 +67,7 @@ export const DEFAULT_APP_SETTINGS: AppSettings = {
   promptEnhancerEnabledI2V: false,
   seedLocked: false,
   lockedSeed: 42,
+  comfyui: DEFAULT_COMFYUI_SETTINGS,
 }
 
 type BackendProcessStatus = 'alive' | 'restarting' | 'dead'
@@ -73,6 +99,20 @@ function toBackendProcessStatus(value: unknown): BackendProcessStatus | null {
   return null
 }
 
+function normalizeComfyUISettings(data?: Partial<ComfyUISettings>): ComfyUISettings {
+  return {
+    enabled: data?.enabled ?? DEFAULT_COMFYUI_SETTINGS.enabled,
+    serverUrl: data?.serverUrl ?? DEFAULT_COMFYUI_SETTINGS.serverUrl,
+    checkpointName: data?.checkpointName ?? DEFAULT_COMFYUI_SETTINGS.checkpointName,
+    devCheckpointName: data?.devCheckpointName ?? DEFAULT_COMFYUI_SETTINGS.devCheckpointName,
+    textEncoderName: data?.textEncoderName ?? DEFAULT_COMFYUI_SETTINGS.textEncoderName,
+    upscalerName: data?.upscalerName ?? DEFAULT_COMFYUI_SETTINGS.upscalerName,
+    distilledLoraName: data?.distilledLoraName ?? DEFAULT_COMFYUI_SETTINGS.distilledLoraName,
+    loraStrength: data?.loraStrength ?? DEFAULT_COMFYUI_SETTINGS.loraStrength,
+    useTwoStage: data?.useTwoStage ?? DEFAULT_COMFYUI_SETTINGS.useTwoStage,
+  }
+}
+
 function normalizeAppSettings(data: Partial<AppSettings>): AppSettings {
   return {
     useTorchCompile: data.useTorchCompile ?? DEFAULT_APP_SETTINGS.useTorchCompile,
@@ -89,6 +129,7 @@ function normalizeAppSettings(data: Partial<AppSettings>): AppSettings {
     promptEnhancerEnabledI2V: data.promptEnhancerEnabledI2V ?? DEFAULT_APP_SETTINGS.promptEnhancerEnabledI2V,
     seedLocked: data.seedLocked ?? DEFAULT_APP_SETTINGS.seedLocked,
     lockedSeed: data.lockedSeed ?? DEFAULT_APP_SETTINGS.lockedSeed,
+    comfyui: normalizeComfyUISettings(data.comfyui),
   }
 }
 

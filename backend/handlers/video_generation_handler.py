@@ -25,7 +25,9 @@ from server_utils.media_validation import (
     validate_audio_file,
     validate_image_file,
 )
-from services.interfaces import LTXAPIClient, VideoPipelineModelType
+from services.interfaces import ComfyUIClient, LTXAPIClient, VideoPipelineModelType
+from services.comfyui_client.comfyui_types import ComfyUIProgressUpdate
+from services.comfyui_client.workflow_builder import WorkflowParams, build_workflow
 from state.app_state_types import AppState
 from state.app_settings import should_video_generate_with_ltx_api
 
@@ -72,18 +74,23 @@ class VideoGenerationHandler(StateHandlerBase):
         config: RuntimeConfig,
         camera_motion_prompts: dict[str, str],
         default_negative_prompt: str,
+        comfyui_client: ComfyUIClient | None = None,
     ) -> None:
         super().__init__(state, lock)
         self._generation = generation_handler
         self._pipelines = pipelines_handler
         self._text = text_handler
         self._ltx_api_client = ltx_api_client
+        self._comfyui_client = comfyui_client
         self._outputs_dir = outputs_dir
         self._config = config
         self._camera_motion_prompts = camera_motion_prompts
         self._default_negative_prompt = default_negative_prompt
 
     def generate(self, req: GenerateVideoRequest) -> GenerateVideoResponse:
+        if self.state.app_settings.comfyui.enabled and self._comfyui_client is not None:
+            return self._generate_comfyui(req)
+
         if should_video_generate_with_ltx_api(
             force_api_generations=self._config.force_api_generations,
             settings=self.state.app_settings,
@@ -394,6 +401,117 @@ class VideoGenerationHandler(StateHandlerBase):
     def _make_output_path(self) -> Path:
         timestamp = datetime.now().strftime("%Y%m%d_%H%M%S")
         return self._outputs_dir / f"ltx2_video_{timestamp}_{self._make_generation_id()}.mp4"
+
+    def _generate_comfyui(self, req: GenerateVideoRequest) -> GenerateVideoResponse:
+        """Generate video via an external ComfyUI server."""
+        if self._comfyui_client is None:
+            raise HTTPError(500, "ComfyUI client not configured")
+
+        if self._generation.is_generation_running():
+            raise HTTPError(409, "Generation already in progress")
+
+        generation_id = self._make_generation_id()
+        comfyui_settings = self.state.app_settings.comfyui
+
+        resolution = req.resolution
+        duration = int(float(req.duration))
+        fps = int(float(req.fps))
+
+        RESOLUTION_MAP_16_9: dict[str, tuple[int, int]] = {
+            "540p": (960, 544),
+            "720p": (1280, 704),
+            "1080p": (1920, 1088),
+        }
+
+        def get_16_9_size(res: str) -> tuple[int, int]:
+            return RESOLUTION_MAP_16_9.get(res, (960, 544))
+
+        def get_9_16_size(res: str) -> tuple[int, int]:
+            w, h = get_16_9_size(res)
+            return h, w
+
+        match req.aspectRatio:
+            case "9:16":
+                width, height = get_9_16_size(resolution)
+            case "16:9":
+                width, height = get_16_9_size(resolution)
+
+        num_frames = self._compute_num_frames(duration, fps)
+        seed = self._resolve_seed()
+
+        image_filename: str | None = None
+        image_path = normalize_optional_path(req.imagePath)
+        if image_path:
+            validated_image = validate_image_file(image_path)
+            image_filename = self._comfyui_client.upload_image(str(validated_image))
+            logger.info("Uploaded image to ComfyUI: %s -> %s", image_path, image_filename)
+
+        enhanced_prompt = req.prompt + self._camera_motion_prompts.get(req.cameraMotion, "")
+        neg = req.negativePrompt if req.negativePrompt else self._default_negative_prompt
+
+        model_type = req.model.strip().lower()
+
+        workflow_params = WorkflowParams(
+            prompt=enhanced_prompt,
+            negative_prompt=neg,
+            width=round(width / 64) * 64,
+            height=round(height / 64) * 64,
+            num_frames=num_frames,
+            fps=fps,
+            seed=seed,
+            model=model_type if model_type in ("fast", "dev") else "fast",
+            image_filename=image_filename,
+            checkpoint_name=comfyui_settings.checkpoint_name,
+            dev_checkpoint_name=comfyui_settings.dev_checkpoint_name,
+            text_encoder_name=comfyui_settings.text_encoder_name,
+            upscaler_name=comfyui_settings.upscaler_name,
+            distilled_lora_name=comfyui_settings.distilled_lora_name,
+            lora_strength=comfyui_settings.lora_strength,
+            use_two_stage=comfyui_settings.use_two_stage,
+        )
+
+        workflow = build_workflow(workflow_params)
+
+        try:
+            self._generation.start_generation(generation_id)
+            self._generation.update_progress("comfyui_queued", 5, 0, 1)
+
+            logger.info(
+                "[comfyui] Generation started (model=%s, %dx%d, %d frames, %d fps, two_stage=%s)",
+                model_type, width, height, num_frames, fps, comfyui_settings.use_two_stage,
+            )
+
+            def _on_progress(update: ComfyUIProgressUpdate) -> None:
+                progress = int((update.value / max(update.max_value, 1)) * 80) + 10
+                self._generation.update_progress(
+                    "inference", min(progress, 95), update.value, update.max_value
+                )
+
+            result = self._comfyui_client.queue_prompt(workflow, on_progress=_on_progress)
+
+            if not result.output_files:
+                raise RuntimeError("ComfyUI returned no output files")
+
+            output_file = result.output_files[0]
+            video_bytes = self._comfyui_client.download_output(
+                output_file.filename,
+                subfolder=output_file.subfolder,
+                folder_type=output_file.folder_type,
+            )
+
+            output_path = self._make_output_path()
+            output_path.write_bytes(video_bytes)
+
+            self._generation.update_progress("complete", 100, 1, 1)
+            self._generation.complete_generation(str(output_path))
+            return GenerateVideoResponse(status="complete", video_path=str(output_path))
+
+        except Exception as e:
+            self._generation.fail_generation(str(e))
+            if "cancelled" in str(e).lower():
+                logger.info("Generation cancelled by user")
+                return GenerateVideoResponse(status="cancelled")
+            raise HTTPError(500, str(e)) from e
 
     def _generate_forced_api(self, req: GenerateVideoRequest) -> GenerateVideoResponse:
         if self._generation.is_generation_running():

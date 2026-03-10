@@ -9,6 +9,7 @@ from typing import Any, ClassVar
 
 from PIL import Image
 from api_types import ImageConditioningInput, VideoCameraMotion
+from services.comfyui_client.comfyui_types import ComfyUIGenerationResult, ComfyUIOutputFile, ComfyUIProgressCallback
 from services.interfaces import IcLoraDownloadPayload, IcLoraModelPayload, VideoInfoPayload
 from services.ltx_api_client.ltx_api_client import LTXRetakeResult
 from tests.fakes.fake_gpu_info import FakeGpuInfo
@@ -801,6 +802,47 @@ class FakeTextEncoder:
         return None
 
 
+class FakeComfyUIClient:
+    def __init__(self) -> None:
+        self.available = True
+        self.queue_prompt_calls: list[dict[str, Any]] = []
+        self.upload_image_calls: list[dict[str, Any]] = []
+        self.download_output_calls: list[dict[str, Any]] = []
+        self.raise_on_queue_prompt: Exception | None = None
+        self.raise_on_upload_image: Exception | None = None
+        self.queue_prompt_result: ComfyUIGenerationResult = ComfyUIGenerationResult(
+            prompt_id="fake-prompt-id",
+            output_files=[ComfyUIOutputFile(filename="ltx_output_00001.mp4")],
+        )
+        self.download_output_result: bytes = b"fake-comfyui-video"
+
+    def is_available(self) -> bool:
+        return self.available
+
+    def queue_prompt(
+        self,
+        workflow: dict[str, Any],
+        *,
+        on_progress: ComfyUIProgressCallback | None = None,
+    ) -> ComfyUIGenerationResult:
+        self.queue_prompt_calls.append({"workflow": workflow, "on_progress": on_progress})
+        if self.raise_on_queue_prompt is not None:
+            raise self.raise_on_queue_prompt
+        return self.queue_prompt_result
+
+    def upload_image(self, image_path: str, *, subfolder: str = "") -> str:
+        self.upload_image_calls.append({"image_path": image_path, "subfolder": subfolder})
+        if self.raise_on_upload_image is not None:
+            raise self.raise_on_upload_image
+        return Path(image_path).name
+
+    def download_output(self, filename: str, *, subfolder: str = "", folder_type: str = "output") -> bytes:
+        self.download_output_calls.append({
+            "filename": filename, "subfolder": subfolder, "folder_type": folder_type,
+        })
+        return self.download_output_result
+
+
 @dataclass
 class FakeServices:
     http: FakeHTTPClient = field(default_factory=FakeHTTPClient)
@@ -812,6 +854,7 @@ class FakeServices:
     task_runner: FakeTaskRunner = field(default_factory=FakeTaskRunner)
     ltx_api_client: FakeLTXAPIClient = field(default_factory=FakeLTXAPIClient)
     zit_api_client: FakeZitAPIClient = field(default_factory=FakeZitAPIClient)
+    comfyui_client: FakeComfyUIClient = field(default_factory=FakeComfyUIClient)
     fast_video_pipeline: FakeFastVideoPipeline = field(default_factory=FakeFastVideoPipeline)
     dev_video_pipeline: FakeDevVideoPipeline = field(default_factory=FakeDevVideoPipeline)
     image_generation_pipeline: FakeImageGenerationPipeline = field(default_factory=FakeImageGenerationPipeline)

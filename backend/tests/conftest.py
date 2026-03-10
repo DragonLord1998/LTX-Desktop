@@ -82,6 +82,7 @@ def test_state(tmp_path: Path, fake_services: FakeServices):
         a2v_pipeline_class=type(fake_services.a2v_pipeline),
         retake_pipeline_class=type(fake_services.retake_pipeline),
         ic_lora_model_downloader=fake_services.ic_lora_model_downloader,
+        comfyui_client=fake_services.comfyui_client,
     )
 
     handler = build_initial_state(

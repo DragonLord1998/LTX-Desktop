@@ -59,6 +59,18 @@ class ProModelSettings(SettingsBaseModel):
         return _clamp_int(value, minimum=1, maximum=100, default=20)
 
 
+class ComfyUISettings(SettingsBaseModel):
+    enabled: bool = False
+    server_url: str = "http://127.0.0.1:8188"
+    checkpoint_name: str = "ltx-2.3-22b-distilled.safetensors"
+    dev_checkpoint_name: str = "ltx-2.3-22b-dev.safetensors"
+    text_encoder_name: str = "comfy_gemma_3_12B_it.safetensors"
+    upscaler_name: str = "ltx-2.3-spatial-upscaler-x2-1.0.safetensors"
+    distilled_lora_name: str = "ltx-2.3-22b-distilled-lora-384.safetensors"
+    lora_strength: float = 0.5
+    use_two_stage: bool = False
+
+
 class AppSettings(SettingsBaseModel):
     use_torch_compile: bool = True
     load_on_startup: bool = True
@@ -74,6 +86,7 @@ class AppSettings(SettingsBaseModel):
     gemini_api_key: str = ""
     seed_locked: bool = False
     locked_seed: int = 42
+    comfyui: ComfyUISettings = Field(default_factory=ComfyUISettings)
 
     @field_validator("prompt_cache_size", mode="before")
     @classmethod
@@ -145,6 +158,7 @@ class SettingsResponse(SettingsBaseModel):
     has_gemini_api_key: bool = False
     seed_locked: bool = False
     locked_seed: int = 42
+    comfyui: ComfyUISettings = Field(default_factory=ComfyUISettings)
 
 
 def to_settings_response(settings: AppSettings) -> SettingsResponse:

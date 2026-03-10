@@ -25,6 +25,7 @@ from handlers.qwen_edit_handler import QwenEditHandler
 from runtime_config.runtime_config import RuntimeConfig
 from services.interfaces import (
     A2VPipeline,
+    ComfyUIClient,
     FastVideoPipeline,
     ZitAPIClient,
     ImageGenerationPipeline,
@@ -66,6 +67,7 @@ class AppHandler:
         a2v_pipeline_class: type[A2VPipeline],
         retake_pipeline_class: type[RetakePipeline],
         ic_lora_model_downloader: IcLoraModelDownloader,
+        comfyui_client: ComfyUIClient | None = None,
         dev_video_pipeline_class: type[FastVideoPipeline] | None = None,
         qwen_edit_pipeline_class: type[QwenImageEditPipeline] | None = None,
     ) -> None:
@@ -87,6 +89,7 @@ class AppHandler:
         self.a2v_pipeline_class = a2v_pipeline_class
         self.retake_pipeline_class = retake_pipeline_class
         self.ic_lora_model_downloader = ic_lora_model_downloader
+        self.comfyui_client = comfyui_client
         self.qwen_edit_pipeline_class = qwen_edit_pipeline_class
 
         self._lock = threading.RLock()
@@ -170,6 +173,7 @@ class AppHandler:
             pipelines_handler=self.pipelines,
             text_handler=self.text,
             ltx_api_client=ltx_api_client,
+            comfyui_client=comfyui_client,
             outputs_dir=config.outputs_dir,
             config=config,
             camera_motion_prompts=config.camera_motion_prompts,
@@ -259,6 +263,7 @@ class ServiceBundle:
     a2v_pipeline_class: type[A2VPipeline]
     retake_pipeline_class: type[RetakePipeline]
     ic_lora_model_downloader: IcLoraModelDownloader
+    comfyui_client: ComfyUIClient | None = None
     dev_video_pipeline_class: type[FastVideoPipeline] | None = None
     qwen_edit_pipeline_class: type[QwenImageEditPipeline] | None = None
 
@@ -282,7 +287,11 @@ def build_default_service_bundle(config: RuntimeConfig) -> ServiceBundle:
     from services.text_encoder.ltx_text_encoder import LTXTextEncoder
     from services.video_processor.video_processor_impl import VideoProcessorImpl
 
+    from services.comfyui_client.comfyui_client_impl import ComfyUIClientImpl
+
     http = HTTPClientImpl()
+
+    comfyui = ComfyUIClientImpl(http=http, server_url="http://127.0.0.1:8188")
 
     return ServiceBundle(
         http=http,
@@ -305,6 +314,7 @@ def build_default_service_bundle(config: RuntimeConfig) -> ServiceBundle:
         a2v_pipeline_class=LTXa2vPipeline,
         retake_pipeline_class=LTXRetakePipeline,
         ic_lora_model_downloader=IcLoraModelDownloaderImpl(),
+        comfyui_client=comfyui,
     )
 
 
@@ -333,6 +343,7 @@ def build_initial_state(
         a2v_pipeline_class=bundle.a2v_pipeline_class,
         retake_pipeline_class=bundle.retake_pipeline_class,
         ic_lora_model_downloader=bundle.ic_lora_model_downloader,
+        comfyui_client=bundle.comfyui_client,
         dev_video_pipeline_class=bundle.dev_video_pipeline_class,
         qwen_edit_pipeline_class=bundle.qwen_edit_pipeline_class,
     )

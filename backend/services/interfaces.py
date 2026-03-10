@@ -5,6 +5,8 @@ from __future__ import annotations
 from typing import Literal
 
 from services.a2v_pipeline.a2v_pipeline import A2VPipeline
+from services.comfyui_client.comfyui_client import ComfyUIClient
+from services.comfyui_client.comfyui_types import ComfyUIGenerationResult, ComfyUIOutputFile, ComfyUIProgressCallback, ComfyUIProgressUpdate
 from services.fast_video_pipeline.fast_video_pipeline import FastVideoPipeline
 from services.zit_api_client.zit_api_client import ZitAPIClient
 from services.gpu_cleaner.gpu_cleaner import GpuCleaner
@@ -30,6 +32,11 @@ VideoPipelineModelType = Literal["fast", "dev"]
 
 __all__ = [
     "A2VPipeline",
+    "ComfyUIClient",
+    "ComfyUIGenerationResult",
+    "ComfyUIOutputFile",
+    "ComfyUIProgressCallback",
+    "ComfyUIProgressUpdate",
     "JSONScalar",
     "JSONValue",
     "GpuTelemetryPayload",
